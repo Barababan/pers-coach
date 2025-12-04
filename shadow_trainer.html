@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pers.coach - Shadow Training</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: white;
+            overflow: hidden;
+        }
+        
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .score-panel {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .score {
+            font-size: 32px;
+            font-weight: bold;
+            color: #00ff88;
+        }
+        
+        .score-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+        }
+        
+        .main-container {
+            display: flex;
+            height: 100vh;
+            padding-top: 70px;
+        }
+        
+        .video-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.2);
+            margin: 10px;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        
+        .video-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        
+        #trainerVideo {
+            max-height: 85vh;
+            max-width: 45vw;
+            object-fit: contain;
+            display: block;
+        }
+        
+        #skeletonCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        
+        .user-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.2);
+            margin: 10px;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        
+        #userVideo {
+            max-height: 85vh;
+            max-width: 45vw;
+            object-fit: contain;
+            display: block;
+        }
+        
+        .user-wrapper {
+            position: relative;
+            display: inline-block;
+            transform: scaleX(-1);
+        }
+        
+        #userCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        
+        .label {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .label.trainer {
+            color: #00d4ff;
+        }
+        
+        .label.user {
+            color: #ff6b6b;
+        }
+        
+        .controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+        
+        .loading.hidden {
+            display: none;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            margin-top: 20px;
+            color: #888;
+        }
+        
+        .feedback {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 0 0 20px currentColor;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 150;
+        }
+        
+        .feedback.show {
+            opacity: 1;
+        }
+        
+        .feedback.perfect {
+            color: #00ff88;
+        }
+        
+        .feedback.good {
+            color: #ffdd00;
+        }
+        
+        .feedback.miss {
+            color: #ff6b6b;
+        }
+        
+        .debug-panel {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-family: monospace;
+            z-index: 100;
+        }
+        
+        .debug-panel.hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Загрузка моделей...</div>
+    </div>
+    
+    <header class="header">
+        <div class="logo">pers.coach</div>
+        <div class="score-panel">
+            <div>
+                <div class="score" id="currentScore">0%</div>
+                <div class="score-label">Точность</div>
+            </div>
+            <div>
+                <div class="score" id="repCount" style="color: #00d4ff;">0</div>
+                <div class="score-label">Повторений</div>
+            </div>
+        </div>
+    </header>
+    
+    <div class="main-container">
+        <div class="video-container">
+            <div class="video-wrapper">
+                <video id="trainerVideo" loop muted playsinline>
+                    <source src="output/trainer_transparent.webm" type="video/webm">
+                </video>
+                <canvas id="skeletonCanvas"></canvas>
+            </div>
+            <div class="label trainer">Тренер</div>
+        </div>
+        
+        <div class="user-container">
+            <div class="user-wrapper">
+                <video id="userVideo" autoplay playsinline></video>
+                <canvas id="userCanvas"></canvas>
+            </div>
+            <div class="label user">Вы</div>
+        </div>
+    </div>
+    
+    <div class="feedback" id="feedback"></div>
+    
+    <div class="controls">
+        <button class="btn btn-primary" id="startBtn">Начать</button>
+        <button class="btn btn-secondary" id="skeletonToggle">Скелет: ВКЛ</button>
+        <button class="btn btn-secondary" id="debugToggle">Debug</button>
+    </div>
+    
+    <div class="debug-panel hidden" id="debugPanel">
+        <div>FPS: <span id="debugFps">0</span></div>
+        <div>Frame: <span id="debugFrame">0</span></div>
+        <div>Trainer joints: <span id="debugTrainerJoints">0</span></div>
+        <div>User joints: <span id="debugUserJoints">0</span></div>
+        <div>Similarity: <span id="debugSimilarity">0</span></div>
+    </div>
+
+    <!-- MediaPipe Pose -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    
+    <script>
+        // Configuration
+        const CONFIG = {
+            showSkeleton: true,
+            trainerSkeletonColor: '#00d4ff',
+            userSkeletonColor: '#ff6b6b',
+            jointRadius: 5,
+            lineWidth: 3,
+            posesJsonPath: 'output/poses/trainer_poses.json'
+        };
+        
+        // State
+        let trainerPoses = null;
+        let currentFrameIdx = 0;
+        let isPlaying = false;
+        let userPose = null;
+        let similarity = 0;
+        let repCount = 0;
+        let lastLowPoint = false;
+        
+        // DOM elements
+        const trainerVideo = document.getElementById('trainerVideo');
+        const skeletonCanvas = document.getElementById('skeletonCanvas');
+        const userVideo = document.getElementById('userVideo');
+        const userCanvas = document.getElementById('userCanvas');
+        const loading = document.getElementById('loading');
+        const startBtn = document.getElementById('startBtn');
+        const feedback = document.getElementById('feedback');
+        
+        // SAM 3D Body joint connections (SMPL-like format)
+        // 0: pelvis, 1: spine, 2: neck, 3-4: head
+        // 5: L_shoulder, 6: R_shoulder, 7: L_elbow, 8: R_elbow, 9: L_wrist, 10: R_wrist
+        // 11: L_hip, 12: R_hip, 13: L_knee, 14: R_knee, 15-16: L_ankle, 17-19: R_ankle
+        const SAM_CONNECTIONS = [
+            // Spine
+            [0, 1], [1, 2],
+            // Head
+            [2, 3], [2, 4],
+            // Left arm
+            [2, 5], [5, 7], [7, 9],
+            // Right arm  
+            [2, 6], [6, 8], [8, 10],
+            // Left leg
+            [0, 11], [11, 13], [13, 15],
+            // Right leg
+            [0, 12], [12, 14], [14, 18],
+            // Hips
+            [11, 12]
+        ];
+        
+        // MediaPipe body connections (skip face points 0-10)
+        const MEDIAPIPE_BODY_CONNECTIONS = [
+            [11, 12], // shoulders
+            [11, 13], [13, 15], // left arm
+            [12, 14], [14, 16], // right arm
+            [11, 23], [12, 24], // torso
+            [23, 24], // hips
+            [23, 25], [25, 27], [27, 29], [29, 31], // left leg
+            [24, 26], [26, 28], [28, 30], [30, 32]  // right leg
+        ];
+        
+        // Key joints for comparison (MediaPipe indices)
+        const COMPARE_JOINTS = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+        
+        // Load trainer poses JSON
+        async function loadTrainerPoses() {
+            try {
+                const response = await fetch(CONFIG.posesJsonPath);
+                trainerPoses = await response.json();
+                console.log('Loaded trainer poses:', trainerPoses.total_frames, 'frames');
+                document.getElementById('debugTrainerJoints').textContent = trainerPoses.poses[0].joints_3d.length;
+            } catch (error) {
+                console.error('Failed to load trainer poses:', error);
+            }
+        }
+        
+        // Initialize MediaPipe Pose
+        function initMediaPipe() {
+            const pose = new Pose({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+            });
+            
+            pose.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                enableSegmentation: false,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            
+            pose.onResults(onUserPoseResults);
+            
+            return pose;
+        }
+        
+        // Handle MediaPipe results
+        function onUserPoseResults(results) {
+            if (results.poseLandmarks) {
+                userPose = results.poseLandmarks;
+                document.getElementById('debugUserJoints').textContent = userPose.length;
+                drawUserSkeleton();
+                calculateSimilarity();
+            }
+        }
+        
+        // Draw user skeleton on canvas (body only, skip face)
+        function drawUserSkeleton() {
+            if (!userPose || !CONFIG.showSkeleton) return;
+            
+            const ctx = userCanvas.getContext('2d');
+            ctx.clearRect(0, 0, userCanvas.width, userCanvas.height);
+            
+            ctx.strokeStyle = CONFIG.userSkeletonColor;
+            ctx.lineWidth = CONFIG.lineWidth;
+            ctx.fillStyle = CONFIG.userSkeletonColor;
+            
+            // Draw connections (body only)
+            for (const [i, j] of MEDIAPIPE_BODY_CONNECTIONS) {
+                const p1 = userPose[i];
+                const p2 = userPose[j];
+                if (p1 && p2 && p1.visibility > 0.5 && p2.visibility > 0.5) {
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x * userCanvas.width, p1.y * userCanvas.height);
+                    ctx.lineTo(p2.x * userCanvas.width, p2.y * userCanvas.height);
+                    ctx.stroke();
+                }
+            }
+            
+            // Draw body joints only (11-32, skip face 0-10)
+            const bodyJoints = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32];
+            for (const i of bodyJoints) {
+                const joint = userPose[i];
+                if (joint && joint.visibility > 0.5) {
+                    ctx.beginPath();
+                    ctx.arc(joint.x * userCanvas.width, joint.y * userCanvas.height, CONFIG.jointRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+        
+        // Draw trainer skeleton from SAM 3D Body data
+        function drawTrainerSkeleton() {
+            if (!trainerPoses || !CONFIG.showSkeleton) return;
+            
+            const ctx = skeletonCanvas.getContext('2d');
+            ctx.clearRect(0, 0, skeletonCanvas.width, skeletonCanvas.height);
+            
+            // Get current frame pose based on video time
+            const videoTime = trainerVideo.currentTime;
+            const frameIdx = Math.floor(videoTime * trainerPoses.original_fps);
+            const poseIdx = Math.min(
+                Math.floor(frameIdx / trainerPoses.skip_frames),
+                trainerPoses.poses.length - 1
+            );
+            
+            if (poseIdx < 0) return;
+            
+            const pose = trainerPoses.poses[poseIdx];
+            if (!pose || !pose.keypoints_2d) return;
+            
+            currentFrameIdx = poseIdx;
+            document.getElementById('debugFrame').textContent = `${poseIdx}/${trainerPoses.poses.length}`;
+            
+            const keypoints = pose.keypoints_2d;
+            
+            ctx.strokeStyle = CONFIG.trainerSkeletonColor;
+            ctx.lineWidth = CONFIG.lineWidth;
+            ctx.fillStyle = CONFIG.trainerSkeletonColor;
+            
+            // Scale from original video coordinates to canvas size
+            const scaleX = skeletonCanvas.width / trainerPoses.width;
+            const scaleY = skeletonCanvas.height / trainerPoses.height;
+            
+            // Draw SAM 3D Body connections
+            for (const [i, j] of SAM_CONNECTIONS) {
+                if (i < keypoints.length && j < keypoints.length) {
+                    const p1 = keypoints[i];
+                    const p2 = keypoints[j];
+                    ctx.beginPath();
+                    ctx.moveTo(p1[0] * scaleX, p1[1] * scaleY);
+                    ctx.lineTo(p2[0] * scaleX, p2[1] * scaleY);
+                    ctx.stroke();
+                }
+            }
+            
+            // Draw main body joints (0-22)
+            for (let i = 0; i < Math.min(22, keypoints.length); i++) {
+                const [x, y] = keypoints[i];
+                ctx.beginPath();
+                ctx.arc(x * scaleX, y * scaleY, CONFIG.jointRadius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        // Calculate pose similarity
+        function calculateSimilarity() {
+            if (!userPose || !trainerPoses) return;
+            
+            const poseIdx = currentFrameIdx;
+            if (poseIdx >= trainerPoses.poses.length) return;
+            
+            const trainerPose = trainerPoses.poses[poseIdx];
+            if (!trainerPose || !trainerPose.keypoints_2d) return;
+            
+            // Map MediaPipe to SAM 3D Body keypoints
+            // MediaPipe: 11=L_shoulder, 12=R_shoulder, 13=L_elbow, 14=R_elbow, etc.
+            // SAM: 5=L_shoulder, 6=R_shoulder, 7=L_elbow, 8=R_elbow, etc.
+            const mpToSam = {
+                11: 5,   // left shoulder
+                12: 6,   // right shoulder
+                13: 7,   // left elbow
+                14: 8,   // right elbow
+                15: 9,   // left wrist
+                16: 10,  // right wrist
+                23: 11,  // left hip
+                24: 12,  // right hip
+                25: 13,  // left knee
+                26: 14,  // right knee
+                27: 15,  // left ankle
+                28: 18   // right ankle
+            };
+            
+            let totalDist = 0;
+            let count = 0;
+            
+            // Get bounding boxes for normalization
+            const userBbox = getBoundingBox(userPose, Object.keys(mpToSam).map(Number));
+            const trainerKp = trainerPose.keypoints_2d;
+            const trainerBbox = getBoundingBoxFromArray(trainerKp, Object.values(mpToSam));
+            
+            for (const [mpIdx, samIdx] of Object.entries(mpToSam)) {
+                const userJoint = userPose[mpIdx];
+                if (!userJoint || userJoint.visibility < 0.5) continue;
+                if (samIdx >= trainerKp.length) continue;
+                
+                // Normalize to 0-1 based on bounding box
+                const userNormX = (userJoint.x - userBbox.minX) / (userBbox.maxX - userBbox.minX || 1);
+                const userNormY = (userJoint.y - userBbox.minY) / (userBbox.maxY - userBbox.minY || 1);
+                
+                const trainerNormX = (trainerKp[samIdx][0] - trainerBbox.minX) / (trainerBbox.maxX - trainerBbox.minX || 1);
+                const trainerNormY = (trainerKp[samIdx][1] - trainerBbox.minY) / (trainerBbox.maxY - trainerBbox.minY || 1);
+                
+                const dist = Math.sqrt((userNormX - trainerNormX) ** 2 + (userNormY - trainerNormY) ** 2);
+                totalDist += dist;
+                count++;
+            }
+            
+            if (count > 0) {
+                const avgDist = totalDist / count;
+                // Convert distance to similarity (0-100%)
+                // avgDist of 0 = 100%, avgDist of 0.5 = 0%
+                similarity = Math.max(0, Math.min(100, (1 - avgDist * 2) * 100));
+                
+                document.getElementById('currentScore').textContent = Math.round(similarity) + '%';
+                document.getElementById('debugSimilarity').textContent = similarity.toFixed(1);
+                
+                // Update score color based on value
+                const scoreEl = document.getElementById('currentScore');
+                if (similarity >= 80) {
+                    scoreEl.style.color = '#00ff88';
+                } else if (similarity >= 50) {
+                    scoreEl.style.color = '#ffdd00';
+                } else {
+                    scoreEl.style.color = '#ff6b6b';
+                }
+                
+                // Rep counting based on hip position
+                if (userPose[23] && userPose[23].visibility > 0.5) {
+                    const hipY = userPose[23].y;
+                    const isLow = hipY > 0.65; // Squat position threshold
+                    
+                    if (isLow && !lastLowPoint) {
+                        repCount++;
+                        document.getElementById('repCount').textContent = repCount;
+                        showFeedback(similarity);
+                    }
+                    lastLowPoint = isLow;
+                }
+            }
+        }
+        
+        function getBoundingBox(landmarks, indices) {
+            let minX = 1, maxX = 0, minY = 1, maxY = 0;
+            for (const idx of indices) {
+                if (landmarks[idx] && landmarks[idx].visibility > 0.5) {
+                    minX = Math.min(minX, landmarks[idx].x);
+                    maxX = Math.max(maxX, landmarks[idx].x);
+                    minY = Math.min(minY, landmarks[idx].y);
+                    maxY = Math.max(maxY, landmarks[idx].y);
+                }
+            }
+            return { minX, maxX, minY, maxY };
+        }
+        
+        function getBoundingBoxFromArray(keypoints, indices) {
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            for (const idx of indices) {
+                if (idx < keypoints.length) {
+                    minX = Math.min(minX, keypoints[idx][0]);
+                    maxX = Math.max(maxX, keypoints[idx][0]);
+                    minY = Math.min(minY, keypoints[idx][1]);
+                    maxY = Math.max(maxY, keypoints[idx][1]);
+                }
+            }
+            return { minX, maxX, minY, maxY };
+        }
+        
+        function showFeedback(score) {
+            let text, className;
+            if (score >= 85) {
+                text = 'ОТЛИЧНО!';
+                className = 'perfect';
+            } else if (score >= 60) {
+                text = 'ХОРОШО';
+                className = 'good';
+            } else {
+                text = 'СТАРАЙСЯ';
+                className = 'miss';
+            }
+            
+            feedback.textContent = text;
+            feedback.className = `feedback show ${className}`;
+            
+            setTimeout(() => {
+                feedback.classList.remove('show');
+            }, 1000);
+        }
+        
+        // Resize canvases to match video elements exactly
+        function resizeCanvases() {
+            // Trainer canvas - match video displayed size
+            const trainerW = trainerVideo.offsetWidth;
+            const trainerH = trainerVideo.offsetHeight;
+            skeletonCanvas.width = trainerW;
+            skeletonCanvas.height = trainerH;
+            
+            // User canvas - match video displayed size
+            const userW = userVideo.offsetWidth;
+            const userH = userVideo.offsetHeight;
+            userCanvas.width = userW;
+            userCanvas.height = userH;
+            
+            console.log('Trainer video size:', trainerW, 'x', trainerH);
+            console.log('User video size:', userW, 'x', userH);
+        }
+        
+        // Animation loop
+        let lastTime = 0;
+        let frameCount = 0;
+        
+        function animate(time) {
+            frameCount++;
+            if (time - lastTime >= 1000) {
+                document.getElementById('debugFps').textContent = frameCount;
+                frameCount = 0;
+                lastTime = time;
+            }
+            
+            if (isPlaying) {
+                drawTrainerSkeleton();
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // Initialize
+        async function init() {
+            // Load trainer poses
+            await loadTrainerPoses();
+            
+            // Setup MediaPipe
+            const pose = initMediaPipe();
+            
+            // Setup user camera
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480 }
+                });
+                userVideo.srcObject = stream;
+                
+                const camera = new Camera(userVideo, {
+                    onFrame: async () => {
+                        await pose.send({ image: userVideo });
+                    },
+                    width: 640,
+                    height: 480
+                });
+                camera.start();
+            } catch (error) {
+                console.error('Camera error:', error);
+                alert('Не удалось получить доступ к камере');
+            }
+            
+            // Setup video events
+            trainerVideo.addEventListener('loadedmetadata', () => {
+                console.log('Video metadata loaded:', trainerVideo.videoWidth, 'x', trainerVideo.videoHeight);
+                resizeCanvases();
+            });
+            trainerVideo.addEventListener('loadeddata', () => {
+                console.log('Video data loaded, ready to play');
+            });
+            trainerVideo.addEventListener('error', (e) => {
+                console.error('Video error:', e);
+            });
+            trainerVideo.addEventListener('play', () => { isPlaying = true; });
+            trainerVideo.addEventListener('pause', () => { isPlaying = false; });
+            
+            window.addEventListener('resize', resizeCanvases);
+            
+            // Hide loading
+            loading.classList.add('hidden');
+            
+            // Start animation loop
+            requestAnimationFrame(animate);
+        }
+        
+        // Event listeners
+        startBtn.addEventListener('click', () => {
+            if (trainerVideo.paused) {
+                trainerVideo.play();
+                startBtn.textContent = 'Пауза';
+            } else {
+                trainerVideo.pause();
+                startBtn.textContent = 'Начать';
+            }
+        });
+        
+        document.getElementById('skeletonToggle').addEventListener('click', (e) => {
+            CONFIG.showSkeleton = !CONFIG.showSkeleton;
+            e.target.textContent = `Скелет: ${CONFIG.showSkeleton ? 'ВКЛ' : 'ВЫКЛ'}`;
+            if (!CONFIG.showSkeleton) {
+                skeletonCanvas.getContext('2d').clearRect(0, 0, skeletonCanvas.width, skeletonCanvas.height);
+                userCanvas.getContext('2d').clearRect(0, 0, userCanvas.width, userCanvas.height);
+            }
+        });
+        
+        document.getElementById('debugToggle').addEventListener('click', () => {
+            document.getElementById('debugPanel').classList.toggle('hidden');
+        });
+        
+        // Start
+        init();
+    </script>
+</body>
+</html>

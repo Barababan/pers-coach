@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pers.coach | Shadow Training</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0f0f1a 100%);
+            color: #fff;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Main layout */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            gap: 0;
+        }
+        
+        /* Left sidebar - glass panel */
+        .sidebar {
+            width: 280px;
+            padding: 24px;
+            background: linear-gradient(135deg, 
+                rgba(255,255,255,0.08) 0%, 
+                rgba(255,255,255,0.02) 100%);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            z-index: 10;
+        }
+        
+        .logo {
+            font-family: 'Orbitron', monospace;
+            font-size: 28px;
+            font-weight: 900;
+            background: linear-gradient(90deg, #00ffd5, #00d4ff, #bd00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0,212,255,0.5);
+        }
+        
+        .mode-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(0,255,136,0.15);
+            border: 1px solid rgba(0,255,136,0.3);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #00ff88;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .mode-badge::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #00ff88;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00ff88;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        
+        .section-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+        }
+        
+        /* Glass toggle */
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .toggle-label {
+            font-size: 14px;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .toggle {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            cursor: pointer;
+        }
+        
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.1);
+            border-radius: 13px;
+            transition: 0.3s;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            left: 2px;
+            top: 2px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        
+        .toggle input:checked + .toggle-slider {
+            background: linear-gradient(90deg, #00ffd5, #00d4ff);
+            box-shadow: 0 0 20px rgba(0,212,255,0.5);
+        }
+        
+        .toggle input:checked + .toggle-slider::before {
+            transform: translateX(22px);
+            background: #fff;
+        }
+        
+        /* Stats panel */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, 
+                rgba(255,255,255,0.05) 0%, 
+                rgba(255,255,255,0.02) 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 32px;
+            font-weight: 900;
+            background: linear-gradient(90deg, #00ffd5, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stat-value.score {
+            background: linear-gradient(90deg, #ff6b6b, #ffd93d, #00ff88);
+            -webkit-background-clip: text;
+        }
+        
+        .stat-label {
+            font-size: 10px;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+        
+        .stat-card.wide {
+            grid-column: span 2;
+        }
+        
+        .reps-value {
+            font-size: 48px;
+        }
+        
+        /* Main stage - the training arena */
+        .stage {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(ellipse at 50% 120%, 
+                rgba(40,40,50,1) 0%, 
+                rgba(20,20,28,1) 40%,
+                rgba(10,10,15,1) 100%);
+            overflow: hidden;
+        }
+        
+        /* Cyclorama floor effect */
+        .stage::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40%;
+            background: linear-gradient(to top,
+                rgba(60,60,70,0.3) 0%,
+                transparent 100%);
+            pointer-events: none;
+        }
+        
+        /* Grid floor */
+        .stage::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: -50%;
+            right: -50%;
+            height: 35%;
+            background: 
+                linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px),
+                linear-gradient(0deg, rgba(0,212,255,0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            transform: perspective(500px) rotateX(60deg);
+            transform-origin: bottom;
+            pointer-events: none;
+        }
+        
+        /* Video container - side by side */
+        .video-stage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            height: 90%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 20px;
+        }
+        
+        /* Trainer video + skeleton */
+        .trainer-container {
+            position: relative;
+            height: 100%;
+            flex: 1;
+            display: flex;
+            justify-content: flex-end;
+        }
+        
+        .trainer-wrap {
+            position: relative;
+            height: 100%;
+        }
+        
+        #trainerVideo {
+            height: 100%;
+            width: auto;
+            object-fit: contain;
+        }
+        
+        #trainerCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        /* User camera - right side */
+        .user-container {
+            position: relative;
+            height: 100%;
+            flex: 1;
+            display: flex;
+            justify-content: flex-start;
+        }
+        
+        .user-wrap {
+            position: relative;
+            height: 100%;
+        }
+        
+        #userVideo {
+            height: 100%;
+            width: auto;
+            object-fit: contain;
+            opacity: 0.6;
+            transform: scaleX(-1);
+        }
+        
+        #userCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            transform: scaleX(-1);
+        }
+        
+        /* Playback controls */
+        .playback-controls {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 24px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 30px;
+            z-index: 100;
+        }
+        
+        .play-btn {
+            width: 48px;
+            height: 48px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00ffd5, #00d4ff);
+            color: #000;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            box-shadow: 0 0 20px rgba(0,212,255,0.5);
+        }
+        
+        .play-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(0,212,255,0.8);
+        }
+        
+        .timeline {
+            width: 300px;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .timeline-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #00ffd5, #00d4ff);
+            border-radius: 3px;
+            width: 0%;
+            box-shadow: 0 0 10px rgba(0,212,255,0.5);
+        }
+        
+        .time-display {
+            font-family: 'Orbitron', monospace;
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+            min-width: 80px;
+        }
+        
+        /* Feedback toast */
+        .feedback {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-family: 'Orbitron', monospace;
+            font-size: 48px;
+            font-weight: 900;
+            text-transform: uppercase;
+            padding: 20px 40px;
+            border-radius: 20px;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            border: 2px solid;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        
+        .feedback.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        
+        .feedback.great {
+            color: #00ff88;
+            border-color: #00ff88;
+            box-shadow: 0 0 40px rgba(0,255,136,0.5);
+        }
+        
+        .feedback.good {
+            color: #ffd93d;
+            border-color: #ffd93d;
+            box-shadow: 0 0 40px rgba(255,217,61,0.5);
+        }
+        
+        .feedback.try {
+            color: #ff6b6b;
+            border-color: #ff6b6b;
+            box-shadow: 0 0 40px rgba(255,107,107,0.5);
+        }
+        
+        /* Header bar */
+        .header-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+            z-index: 50;
+        }
+        
+        .trainer-name {
+            font-family: 'Orbitron', monospace;
+            font-size: 14px;
+            color: #00d4ff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        /* Hidden elements */
+        .hidden {
+            display: none;
+        }
+        
+        /* Start overlay */
+        .start-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            z-index: 200;
+        }
+        
+        .start-overlay.hidden {
+            display: none;
+        }
+        
+        .start-btn {
+            padding: 20px 60px;
+            font-family: 'Orbitron', monospace;
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border: none;
+            border-radius: 30px;
+            background: linear-gradient(135deg, #00ffd5, #00d4ff);
+            color: #000;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 40px rgba(0,212,255,0.5);
+        }
+        
+        .start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 60px rgba(0,212,255,0.8);
+        }
+        
+        .start-text {
+            color: rgba(255,255,255,0.5);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">pers.coach</div>
+            <div class="mode-badge">Shadow Mode</div>
+            
+            <div class="section">
+                <div class="section-title">Настройки</div>
+                <div class="toggle-row">
+                    <span class="toggle-label">Тень клиента</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="toggleShadow" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <span class="toggle-label">Скелет тренера</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="toggleTrainerSkel" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <span class="toggle-label">Скелет клиента</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="toggleUserSkel" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Статистика</div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value score" id="scoreValue">0%</div>
+                        <div class="stat-label">Точность</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="fpsValue">--</div>
+                        <div class="stat-label">FPS</div>
+                    </div>
+                    <div class="stat-card wide">
+                        <div class="stat-value reps-value" id="repsValue">0</div>
+                        <div class="stat-label">Повторений</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="flex:1"></div>
+            
+            <button class="start-btn" id="stopBtn" style="background: linear-gradient(135deg, #ff6b6b, #ff4757); width:100%;">
+                Остановить
+            </button>
+        </aside>
+        
+        <!-- Main Stage -->
+        <main class="stage">
+            <div class="header-bar">
+                <span class="trainer-name">🔥 Тренер: Anna</span>
+            </div>
+            
+            <div class="video-stage">
+                <!-- Trainer (left) -->
+                <div class="trainer-container">
+                    <div class="trainer-wrap">
+                        <video id="trainerVideo" playsinline muted loop>
+                            <source src="output/trainer_transparent.webm" type="video/webm">
+                        </video>
+                        <canvas id="trainerCanvas"></canvas>
+                    </div>
+                </div>
+                
+                <!-- User (right) -->
+                <div class="user-container">
+                    <div class="user-wrap">
+                        <video id="userVideo" playsinline autoplay></video>
+                        <canvas id="userCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Playback -->
+            <div class="playback-controls">
+                <button class="play-btn" id="playBtn">▶</button>
+                <div class="timeline" id="timeline">
+                    <div class="timeline-progress" id="timelineProgress"></div>
+                </div>
+                <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
+            </div>
+            
+            <!-- Feedback -->
+            <div class="feedback" id="feedback"></div>
+            
+            <!-- Start overlay -->
+            <div class="start-overlay" id="startOverlay">
+                <div class="logo" style="font-size:48px;">pers.coach</div>
+                <p class="start-text">Нажмите для начала тренировки</p>
+                <button class="start-btn" id="startBtn">Начать</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- MediaPipe -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
+    <script>
+        // Elements
+        const trainerVideo = document.getElementById('trainerVideo');
+        const trainerCanvas = document.getElementById('trainerCanvas');
+        const trainerCtx = trainerCanvas.getContext('2d');
+        const userVideo = document.getElementById('userVideo');
+        const userCanvas = document.getElementById('userCanvas');
+        const userCtx = userCanvas.getContext('2d');
+        
+        // State
+        let trainerPoses = null;
+        let userLandmarks = null;
+        let showShadow = true;
+        let showTrainerSkel = true;
+        let showUserSkel = true;
+        let similarity = 0;
+        let reps = 0;
+        let wasLow = false;
+        let isPlaying = false;
+        let lastFpsTime = 0;
+        let frameCount = 0;
+        
+        // MHR70 simplified skeleton (only main body joints)
+        // 0:nose, 5:L_shoulder, 6:R_shoulder, 7:L_elbow, 8:R_elbow
+        // 62:L_wrist, 41:R_wrist, 9:L_hip, 10:R_hip
+        // 11:L_knee, 12:R_knee, 13:L_ankle, 14:R_ankle
+        const MHR_BONES = [
+            [5, 6],       // shoulders
+            [5, 7], [7, 62],   // L arm
+            [6, 8], [8, 41],   // R arm
+            [5, 9], [6, 10],   // torso
+            [9, 10],      // hips
+            [9, 11], [11, 13], // L leg
+            [10, 12], [12, 14] // R leg
+        ];
+        const MHR_JOINTS = [5, 6, 7, 8, 62, 41, 9, 10, 11, 12, 13, 14];
+        
+        // MediaPipe bones (body only)
+        const MP_BONES = [
+            [11, 12],     // shoulders
+            [11, 13], [13, 15], // L arm
+            [12, 14], [14, 16], // R arm
+            [11, 23], [12, 24], // torso
+            [23, 24],     // hips
+            [23, 25], [25, 27], // L leg
+            [24, 26], [26, 28]  // R leg
+        ];
+        const MP_JOINTS = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+        
+        // Load poses
+        fetch('output/poses/trainer_poses.json')
+            .then(r => r.json())
+            .then(data => {
+                trainerPoses = data;
+                console.log('Poses loaded:', data.poses.length);
+            });
+        
+        // Toggle handlers
+        document.getElementById('toggleShadow').onchange = e => showShadow = e.target.checked;
+        document.getElementById('toggleTrainerSkel').onchange = e => showTrainerSkel = e.target.checked;
+        document.getElementById('toggleUserSkel').onchange = e => showUserSkel = e.target.checked;
+        
+        // Start
+        document.getElementById('startBtn').onclick = async () => {
+            document.getElementById('startOverlay').classList.add('hidden');
+            
+            // Get user camera
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 640, height: 480, facingMode: 'user' }
+            });
+            userVideo.srcObject = stream;
+            
+            // Setup MediaPipe
+            const pose = new Pose({
+                locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`
+            });
+            pose.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            pose.onResults(onPoseResults);
+            
+            // Camera loop
+            const camera = new Camera(userVideo, {
+                onFrame: async () => {
+                    await pose.send({ image: userVideo });
+                },
+                width: 640,
+                height: 480
+            });
+            camera.start();
+            
+            // Play trainer
+            trainerVideo.play();
+            isPlaying = true;
+            document.getElementById('playBtn').textContent = '⏸';
+            
+            // Animation loop
+            requestAnimationFrame(renderLoop);
+        };
+        
+        // Play/Pause
+        document.getElementById('playBtn').onclick = () => {
+            if (isPlaying) {
+                trainerVideo.pause();
+                document.getElementById('playBtn').textContent = '▶';
+            } else {
+                trainerVideo.play();
+                document.getElementById('playBtn').textContent = '⏸';
+            }
+            isPlaying = !isPlaying;
+        };
+        
+        // Timeline
+        document.getElementById('timeline').onclick = e => {
+            const rect = e.target.getBoundingClientRect();
+            const pct = (e.clientX - rect.left) / rect.width;
+            trainerVideo.currentTime = pct * trainerVideo.duration;
+        };
+        
+        // Stop
+        document.getElementById('stopBtn').onclick = () => {
+            location.reload();
+        };
+        
+        // Pose results
+        function onPoseResults(results) {
+            userLandmarks = results.poseLandmarks;
+            frameCount++;
+        }
+        
+        // Main render loop
+        function renderLoop() {
+            drawTrainer();
+            drawUser();
+            calcSimilarity();
+            updateUI();
+            requestAnimationFrame(renderLoop);
+        }
+        
+        // Setup canvas to match video
+        function setupCanvas(video, canvas) {
+            const rect = video.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            return { w: rect.width, h: rect.height };
+        }
+        
+        // Draw trainer skeleton
+        function drawTrainer() {
+            const video = trainerVideo;
+            const rect = video.getBoundingClientRect();
+            
+            trainerCanvas.width = rect.width;
+            trainerCanvas.height = rect.height;
+            trainerCtx.clearRect(0, 0, rect.width, rect.height);
+            
+            if (!showTrainerSkel || !trainerPoses) return;
+            
+            const time = trainerVideo.currentTime;
+            const frameIdx = Math.floor(time * trainerPoses.original_fps);
+            let poseIdx = Math.floor(frameIdx / trainerPoses.skip_frames);
+            poseIdx = Math.max(0, Math.min(poseIdx, trainerPoses.poses.length - 1));
+            
+            const pose = trainerPoses.poses[poseIdx];
+            if (!pose) return;
+            
+            const kp = pose.keypoints_2d;
+            // Scale from original video size to displayed size
+            const scaleX = rect.width / trainerPoses.width;
+            const scaleY = rect.height / trainerPoses.height;
+            
+            // Glow effect
+            trainerCtx.shadowColor = '#00ffd5';
+            trainerCtx.shadowBlur = 15;
+            trainerCtx.strokeStyle = '#00ffd5';
+            trainerCtx.fillStyle = '#00ffd5';
+            trainerCtx.lineWidth = 3;
+            
+            // Draw bones
+            for (const [i, j] of MHR_BONES) {
+                if (i >= kp.length || j >= kp.length) continue;
+                const x1 = kp[i][0] * scaleX;
+                const y1 = kp[i][1] * scaleY;
+                const x2 = kp[j][0] * scaleX;
+                const y2 = kp[j][1] * scaleY;
+                
+                trainerCtx.beginPath();
+                trainerCtx.moveTo(x1, y1);
+                trainerCtx.lineTo(x2, y2);
+                trainerCtx.stroke();
+            }
+            
+            // Draw joints
+            trainerCtx.shadowBlur = 20;
+            for (const i of MHR_JOINTS) {
+                if (i >= kp.length) continue;
+                const x = kp[i][0] * scaleX;
+                const y = kp[i][1] * scaleY;
+                trainerCtx.beginPath();
+                trainerCtx.arc(x, y, 5, 0, Math.PI * 2);
+                trainerCtx.fill();
+            }
+        }
+        
+        // Draw user skeleton
+        function drawUser() {
+            const video = userVideo;
+            const rect = video.getBoundingClientRect();
+            
+            userCanvas.width = rect.width;
+            userCanvas.height = rect.height;
+            userCtx.clearRect(0, 0, rect.width, rect.height);
+            
+            // Shadow (user silhouette) - just hide/show video
+            userVideo.style.opacity = showShadow ? 0.6 : 0;
+            
+            if (!showUserSkel || !userLandmarks) return;
+            
+            // Glow effect
+            userCtx.shadowColor = '#ff6b6b';
+            userCtx.shadowBlur = 15;
+            userCtx.strokeStyle = '#ff6b6b';
+            userCtx.fillStyle = '#ff6b6b';
+            userCtx.lineWidth = 3;
+            
+            // Draw bones (canvas is mirrored via CSS, so draw normally)
+            for (const [i, j] of MP_BONES) {
+                const p1 = userLandmarks[i];
+                const p2 = userLandmarks[j];
+                if (!p1 || !p2 || p1.visibility < 0.5 || p2.visibility < 0.5) continue;
+                
+                const x1 = p1.x * rect.width;
+                const y1 = p1.y * rect.height;
+                const x2 = p2.x * rect.width;
+                const y2 = p2.y * rect.height;
+                
+                userCtx.beginPath();
+                userCtx.moveTo(x1, y1);
+                userCtx.lineTo(x2, y2);
+                userCtx.stroke();
+            }
+            
+            // Draw joints
+            userCtx.shadowBlur = 20;
+            for (const i of MP_JOINTS) {
+                const p = userLandmarks[i];
+                if (!p || p.visibility < 0.5) continue;
+                
+                const x = p.x * rect.width;
+                const y = p.y * rect.height;
+                
+                userCtx.beginPath();
+                userCtx.arc(x, y, 5, 0, Math.PI * 2);
+                userCtx.fill();
+            }
+        }
+        
+        // Calculate similarity
+        function calcSimilarity() {
+            if (!userLandmarks || !trainerPoses) return;
+            
+            const time = trainerVideo.currentTime;
+            const frameIdx = Math.floor(time * trainerPoses.original_fps);
+            let poseIdx = Math.floor(frameIdx / trainerPoses.skip_frames);
+            poseIdx = Math.max(0, Math.min(poseIdx, trainerPoses.poses.length - 1));
+            
+            const pose = trainerPoses.poses[poseIdx];
+            if (!pose) return;
+            
+            const tkp = pose.keypoints_2d;
+            
+            // Map: MediaPipe -> MHR70
+            const map = {
+                11: 5, 12: 6,     // shoulders
+                13: 7, 14: 8,     // elbows
+                15: 62, 16: 41,   // wrists
+                23: 9, 24: 10,    // hips
+                25: 11, 26: 12,   // knees
+                27: 13, 28: 14    // ankles
+            };
+            
+            const userPts = [], trainerPts = [];
+            
+            for (const [mpIdx, mhrIdx] of Object.entries(map)) {
+                const up = userLandmarks[mpIdx];
+                if (!up || up.visibility < 0.5 || mhrIdx >= tkp.length) continue;
+                
+                userPts.push({ x: up.x, y: up.y });
+                trainerPts.push({ 
+                    x: tkp[mhrIdx][0] / trainerPoses.width, 
+                    y: tkp[mhrIdx][1] / trainerPoses.height 
+                });
+            }
+            
+            if (userPts.length < 6) return;
+            
+            // Normalize and compare
+            const ubox = getBbox(userPts);
+            const tbox = getBbox(trainerPts);
+            
+            let totalDist = 0;
+            for (let i = 0; i < userPts.length; i++) {
+                const ux = (userPts[i].x - ubox.minX) / (ubox.maxX - ubox.minX || 1);
+                const uy = (userPts[i].y - ubox.minY) / (ubox.maxY - ubox.minY || 1);
+                const tx = (trainerPts[i].x - tbox.minX) / (tbox.maxX - tbox.minX || 1);
+                const ty = (trainerPts[i].y - tbox.minY) / (tbox.maxY - tbox.minY || 1);
+                
+                totalDist += Math.sqrt((ux - tx) ** 2 + (uy - ty) ** 2);
+            }
+            
+            const avgDist = totalDist / userPts.length;
+            similarity = Math.max(0, Math.min(100, (1 - avgDist * 1.5) * 100));
+            
+            // Rep counting
+            const hip = userLandmarks[23];
+            if (hip && hip.visibility > 0.5) {
+                const isLow = hip.y > 0.6;
+                if (isLow && !wasLow) {
+                    reps++;
+                    showFeedback(similarity);
+                }
+                wasLow = isLow;
+            }
+        }
+        
+        function getBbox(pts) {
+            let minX = 1, maxX = 0, minY = 1, maxY = 0;
+            for (const p of pts) {
+                minX = Math.min(minX, p.x);
+                maxX = Math.max(maxX, p.x);
+                minY = Math.min(minY, p.y);
+                maxY = Math.max(maxY, p.y);
+            }
+            return { minX, maxX, minY, maxY };
+        }
+        
+        function showFeedback(score) {
+            const el = document.getElementById('feedback');
+            if (score >= 70) {
+                el.textContent = 'ОТЛИЧНО!';
+                el.className = 'feedback show great';
+            } else if (score >= 40) {
+                el.textContent = 'ХОРОШО';
+                el.className = 'feedback show good';
+            } else {
+                el.textContent = 'СТАРАЙСЯ!';
+                el.className = 'feedback show try';
+            }
+            setTimeout(() => el.classList.remove('show'), 1500);
+        }
+        
+        // Update UI
+        function updateUI() {
+            // Score
+            document.getElementById('scoreValue').textContent = Math.round(similarity) + '%';
+            
+            // Reps
+            document.getElementById('repsValue').textContent = reps;
+            
+            // Timeline
+            if (trainerVideo.duration) {
+                const pct = (trainerVideo.currentTime / trainerVideo.duration) * 100;
+                document.getElementById('timelineProgress').style.width = pct + '%';
+                
+                const cur = formatTime(trainerVideo.currentTime);
+                const dur = formatTime(trainerVideo.duration);
+                document.getElementById('timeDisplay').textContent = `${cur} / ${dur}`;
+            }
+            
+            // FPS
+            const now = performance.now();
+            if (now - lastFpsTime >= 1000) {
+                document.getElementById('fpsValue').textContent = frameCount;
+                frameCount = 0;
+                lastFpsTime = now;
+            }
+        }
+        
+        function formatTime(s) {
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return `${m}:${sec.toString().padStart(2, '0')}`;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pers.coach - Shadow Training v2</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: white;
+            overflow: hidden;
+        }
+        
+        .header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .score-panel {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+        
+        .score-item { text-align: center; }
+        .score { font-size: 36px; font-weight: bold; }
+        .score.accuracy { color: #00ff88; }
+        .score.reps { color: #00d4ff; }
+        .score-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .main-container {
+            display: flex;
+            height: 100vh;
+            padding-top: 70px;
+            padding-bottom: 80px;
+        }
+        
+        .panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+        
+        .panel-label {
+            position: absolute;
+            bottom: 100px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 24px;
+            border-radius: 20px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .panel-label.trainer { color: #00d4ff; }
+        .panel-label.user { color: #ff6b6b; }
+        
+        /* Video wrapper - ключевой элемент для overlay */
+        .video-wrap {
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        
+        .video-wrap video {
+            display: block;
+            max-height: 75vh;
+            max-width: 100%;
+        }
+        
+        .video-wrap canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        /* Mirror для юзера */
+        .panel.user .video-wrap {
+            transform: scaleX(-1);
+        }
+        
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 100;
+        }
+        
+        .btn {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 25px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.2); }
+        .btn-secondary.active { background: rgba(0, 212, 255, 0.3); border-color: #00d4ff; }
+        
+        .feedback {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 64px;
+            font-weight: bold;
+            text-shadow: 0 0 30px currentColor;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 150;
+        }
+        
+        .feedback.show { opacity: 1; }
+        .feedback.perfect { color: #00ff88; }
+        .feedback.good { color: #ffdd00; }
+        .feedback.try { color: #ff6b6b; }
+        
+        .debug {
+            position: fixed;
+            top: 80px; right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-family: monospace;
+            display: none;
+            z-index: 100;
+        }
+        
+        .debug.show { display: block; }
+        .debug div { margin: 4px 0; }
+        
+        .loading {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+        
+        .loading.hidden { display: none; }
+        
+        .spinner {
+            width: 50px; height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .loading-text { margin-top: 20px; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Загрузка...</div>
+    </div>
+
+    <header class="header">
+        <div class="logo">pers.coach</div>
+        <div class="score-panel">
+            <div class="score-item">
+                <div class="score accuracy" id="scoreValue">0%</div>
+                <div class="score-label">Точность</div>
+            </div>
+            <div class="score-item">
+                <div class="score reps" id="repsValue">0</div>
+                <div class="score-label">Повторений</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="panel trainer">
+            <div class="video-wrap">
+                <video id="trainerVideo" loop muted playsinline>
+                    <source src="output/trainer_transparent.webm" type="video/webm">
+                </video>
+                <canvas id="trainerCanvas"></canvas>
+            </div>
+            <div class="panel-label trainer">Тренер</div>
+        </div>
+        
+        <div class="panel user">
+            <div class="video-wrap">
+                <video id="userVideo" autoplay playsinline></video>
+                <canvas id="userCanvas"></canvas>
+            </div>
+            <div class="panel-label user">Вы</div>
+        </div>
+    </div>
+
+    <div class="feedback" id="feedback"></div>
+
+    <div class="controls">
+        <button class="btn btn-primary" id="playBtn">Начать</button>
+        <button class="btn btn-secondary active" id="skelBtn">Скелет</button>
+        <button class="btn btn-secondary" id="debugBtn">Debug</button>
+    </div>
+
+    <div class="debug" id="debug">
+        <div>FPS: <span id="dbgFps">0</span></div>
+        <div>Frame: <span id="dbgFrame">0</span></div>
+        <div>Canvas: <span id="dbgCanvas">0x0</span></div>
+        <div>Scale: <span id="dbgScale">0</span></div>
+        <div>Similarity: <span id="dbgSim">0</span></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+
+    <script>
+        // Elements
+        const trainerVideo = document.getElementById('trainerVideo');
+        const trainerCanvas = document.getElementById('trainerCanvas');
+        const userVideo = document.getElementById('userVideo');
+        const userCanvas = document.getElementById('userCanvas');
+        const trainerCtx = trainerCanvas.getContext('2d');
+        const userCtx = userCanvas.getContext('2d');
+        
+        // State
+        let trainerPoses = null;
+        let userLandmarks = null;
+        let showSkeleton = true;
+        let isPlaying = false;
+        let similarity = 0;
+        let reps = 0;
+        let wasLow = false;
+        
+        // MHR70 keypoint indices (from SAM 3D Body)
+        // 0: nose, 1: left_eye, 2: right_eye, 3: left_ear, 4: right_ear
+        // 5: left_shoulder, 6: right_shoulder
+        // 7: left_elbow, 8: right_elbow
+        // 9: left_hip, 10: right_hip
+        // 11: left_knee, 12: right_knee
+        // 13: left_ankle, 14: right_ankle
+        // 15: left_big_toe, 16: left_small_toe, 17: left_heel
+        // 18: right_big_toe, 19: right_small_toe, 20: right_heel
+        // 21-41: right hand (41=right_wrist)
+        // 42-62: left hand (62=left_wrist)
+        // 63-69: extra points (olecranon, cubital, acromion, neck)
+        
+        const MHR_BONES = [
+            // Face
+            [0, 1], [0, 2], [1, 2], [1, 3], [2, 4],
+            // Ears to shoulders
+            [3, 5], [4, 6],
+            // Shoulders
+            [5, 6],
+            // Left arm: shoulder -> elbow -> wrist
+            [5, 7], [7, 62],
+            // Right arm: shoulder -> elbow -> wrist
+            [6, 8], [8, 41],
+            // Torso: shoulders to hips
+            [5, 9], [6, 10],
+            // Hips
+            [9, 10],
+            // Left leg: hip -> knee -> ankle
+            [9, 11], [11, 13],
+            // Right leg: hip -> knee -> ankle  
+            [10, 12], [12, 14],
+            // Left foot: ankle -> toes/heel
+            [13, 15], [13, 16], [13, 17],
+            // Right foot: ankle -> toes/heel
+            [14, 18], [14, 19], [14, 20],
+            // Left hand fingers (simplified - wrist to fingertips)
+            [62, 42], [62, 46], [62, 50], [62, 54], [62, 58],
+            // Right hand fingers (simplified - wrist to fingertips)
+            [41, 21], [41, 25], [41, 29], [41, 33], [41, 37]
+        ];
+        
+        // All joints to draw
+        const MHR_JOINTS = [
+            0, 1, 2, 3, 4,           // face
+            5, 6, 7, 8,              // shoulders, elbows
+            62, 41,                   // wrists
+            9, 10, 11, 12, 13, 14,   // hips, knees, ankles
+            15, 16, 17, 18, 19, 20,  // feet
+            42, 46, 50, 54, 58,      // left fingertips
+            21, 25, 29, 33, 37       // right fingertips
+        ];
+        
+        // MediaPipe body skeleton (indices 11-32)
+        const MP_BONES = [
+            [11, 12],                                  // shoulders
+            [11, 13], [13, 15],                        // left arm
+            [12, 14], [14, 16],                        // right arm
+            [11, 23], [12, 24],                        // torso
+            [23, 24],                                  // hips
+            [23, 25], [25, 27],                        // left leg
+            [24, 26], [26, 28]                         // right leg
+        ];
+        
+        // Load trainer poses
+        async function loadPoses() {
+            const resp = await fetch('output/poses/trainer_poses.json');
+            trainerPoses = await resp.json();
+            console.log('Loaded poses:', trainerPoses.total_frames);
+        }
+        
+        // Setup canvas size based on video
+        function setupCanvas(video, canvas) {
+            const rect = video.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            return { w: rect.width, h: rect.height };
+        }
+        
+        // Draw trainer skeleton
+        function drawTrainer() {
+            if (!trainerPoses || !showSkeleton) {
+                trainerCtx.clearRect(0, 0, trainerCanvas.width, trainerCanvas.height);
+                return;
+            }
+            
+            // Get current pose index from video time
+            const time = trainerVideo.currentTime;
+            const frameIdx = Math.floor(time * trainerPoses.original_fps);
+            let poseIdx = Math.floor(frameIdx / trainerPoses.skip_frames);
+            poseIdx = Math.max(0, Math.min(poseIdx, trainerPoses.poses.length - 1));
+            
+            const pose = trainerPoses.poses[poseIdx];
+            if (!pose) return;
+            
+            const kp = pose.keypoints_2d;
+            
+            // Setup canvas if needed
+            const size = setupCanvas(trainerVideo, trainerCanvas);
+            
+            // Scale factors: from original video coords to canvas
+            const scaleX = size.w / trainerPoses.width;
+            const scaleY = size.h / trainerPoses.height;
+            
+            document.getElementById('dbgFrame').textContent = `${poseIdx}/${trainerPoses.poses.length}`;
+            document.getElementById('dbgCanvas').textContent = `${size.w.toFixed(0)}x${size.h.toFixed(0)}`;
+            document.getElementById('dbgScale').textContent = `${scaleX.toFixed(2)}x${scaleY.toFixed(2)}`;
+            
+            // Clear and draw
+            trainerCtx.clearRect(0, 0, size.w, size.h);
+            trainerCtx.strokeStyle = '#00d4ff';
+            trainerCtx.fillStyle = '#00d4ff';
+            trainerCtx.lineWidth = 3;
+            
+            // Draw bones
+            for (const [i, j] of MHR_BONES) {
+                if (i >= kp.length || j >= kp.length) continue;
+                const x1 = kp[i][0] * scaleX;
+                const y1 = kp[i][1] * scaleY;
+                const x2 = kp[j][0] * scaleX;
+                const y2 = kp[j][1] * scaleY;
+                
+                trainerCtx.beginPath();
+                trainerCtx.moveTo(x1, y1);
+                trainerCtx.lineTo(x2, y2);
+                trainerCtx.stroke();
+            }
+            
+            // Draw joints (only main body joints)
+            for (const i of MHR_JOINTS) {
+                if (i >= kp.length) continue;
+                const x = kp[i][0] * scaleX;
+                const y = kp[i][1] * scaleY;
+                trainerCtx.beginPath();
+                trainerCtx.arc(x, y, 6, 0, Math.PI * 2);
+                trainerCtx.fill();
+            }
+        }
+        
+        // Draw user skeleton
+        function drawUser() {
+            if (!userLandmarks || !showSkeleton) {
+                userCtx.clearRect(0, 0, userCanvas.width, userCanvas.height);
+                return;
+            }
+            
+            const size = setupCanvas(userVideo, userCanvas);
+            
+            userCtx.clearRect(0, 0, size.w, size.h);
+            userCtx.strokeStyle = '#ff6b6b';
+            userCtx.fillStyle = '#ff6b6b';
+            userCtx.lineWidth = 3;
+            
+            // Draw bones (body only, skip face)
+            for (const [i, j] of MP_BONES) {
+                const p1 = userLandmarks[i];
+                const p2 = userLandmarks[j];
+                if (!p1 || !p2 || p1.visibility < 0.5 || p2.visibility < 0.5) continue;
+                
+                userCtx.beginPath();
+                userCtx.moveTo(p1.x * size.w, p1.y * size.h);
+                userCtx.lineTo(p2.x * size.w, p2.y * size.h);
+                userCtx.stroke();
+            }
+            
+            // Draw body joints only (11-28)
+            for (let i = 11; i <= 28; i++) {
+                const p = userLandmarks[i];
+                if (!p || p.visibility < 0.5) continue;
+                userCtx.beginPath();
+                userCtx.arc(p.x * size.w, p.y * size.h, 5, 0, Math.PI * 2);
+                userCtx.fill();
+            }
+            
+            // Calculate similarity
+            calcSimilarity();
+        }
+        
+        // Calculate pose similarity
+        function calcSimilarity() {
+            if (!userLandmarks || !trainerPoses) return;
+            
+            const time = trainerVideo.currentTime;
+            const frameIdx = Math.floor(time * trainerPoses.original_fps);
+            let poseIdx = Math.floor(frameIdx / trainerPoses.skip_frames);
+            poseIdx = Math.max(0, Math.min(poseIdx, trainerPoses.poses.length - 1));
+            
+            const pose = trainerPoses.poses[poseIdx];
+            if (!pose) return;
+            
+            const tkp = pose.keypoints_2d;
+            
+            // Mapping: MediaPipe index -> MHR70 index (corrected)
+            // MediaPipe: 11=L_shoulder, 12=R_shoulder, etc (mirrored view)
+            // MHR70: 5=L_shoulder, 6=R_shoulder, 7=L_elbow, 8=R_elbow
+            //        62=L_wrist, 41=R_wrist, 9=L_hip, 10=R_hip
+            //        11=L_knee, 12=R_knee, 13=L_ankle, 14=R_ankle
+            const map = {
+                11: 5, 12: 6,     // shoulders (L/R) - same side
+                13: 7, 14: 8,     // elbows - same side
+                15: 62, 16: 41,   // wrists - LEFT=62, RIGHT=41
+                23: 9, 24: 10,    // hips - same side
+                25: 11, 26: 12,   // knees - same side
+                27: 13, 28: 14    // ankles - same side
+            };
+            
+            // Normalize both poses to their bounding boxes
+            const userPts = [], trainerPts = [];
+            
+            for (const [mpIdx, samIdx] of Object.entries(map)) {
+                const up = userLandmarks[mpIdx];
+                if (!up || up.visibility < 0.5 || samIdx >= tkp.length) continue;
+                
+                userPts.push({ x: up.x, y: up.y });
+                trainerPts.push({ 
+                    x: tkp[samIdx][0] / trainerPoses.width, 
+                    y: tkp[samIdx][1] / trainerPoses.height 
+                });
+            }
+            
+            if (userPts.length < 6) return;
+            
+            // Get bboxes
+            const ubox = getBbox(userPts);
+            const tbox = getBbox(trainerPts);
+            
+            // Compare normalized positions
+            let totalDist = 0;
+            for (let i = 0; i < userPts.length; i++) {
+                const ux = (userPts[i].x - ubox.minX) / (ubox.maxX - ubox.minX || 1);
+                const uy = (userPts[i].y - ubox.minY) / (ubox.maxY - ubox.minY || 1);
+                const tx = (trainerPts[i].x - tbox.minX) / (tbox.maxX - tbox.minX || 1);
+                const ty = (trainerPts[i].y - tbox.minY) / (tbox.maxY - tbox.minY || 1);
+                
+                totalDist += Math.sqrt((ux - tx) ** 2 + (uy - ty) ** 2);
+            }
+            
+            const avgDist = totalDist / userPts.length;
+            similarity = Math.max(0, Math.min(100, (1 - avgDist * 1.5) * 100));
+            
+            document.getElementById('scoreValue').textContent = Math.round(similarity) + '%';
+            document.getElementById('dbgSim').textContent = similarity.toFixed(1);
+            
+            // Color based on score
+            const el = document.getElementById('scoreValue');
+            el.style.color = similarity >= 70 ? '#00ff88' : similarity >= 40 ? '#ffdd00' : '#ff6b6b';
+            
+            // Rep counting (squat detection)
+            const hip = userLandmarks[23];
+            if (hip && hip.visibility > 0.5) {
+                const isLow = hip.y > 0.6;
+                if (isLow && !wasLow) {
+                    reps++;
+                    document.getElementById('repsValue').textContent = reps;
+                    showFeedback(similarity);
+                }
+                wasLow = isLow;
+            }
+        }
+        
+        function getBbox(pts) {
+            let minX = 1, maxX = 0, minY = 1, maxY = 0;
+            for (const p of pts) {
+                minX = Math.min(minX, p.x);
+                maxX = Math.max(maxX, p.x);
+                minY = Math.min(minY, p.y);
+                maxY = Math.max(maxY, p.y);
+            }
+            return { minX, maxX, minY, maxY };
+        }
+        
+        function showFeedback(score) {
+            const el = document.getElementById('feedback');
+            if (score >= 70) {
+                el.textContent = 'ОТЛИЧНО!';
+                el.className = 'feedback show perfect';
+            } else if (score >= 40) {
+                el.textContent = 'ХОРОШО';
+                el.className = 'feedback show good';
+            } else {
+                el.textContent = 'СТАРАЙСЯ!';
+                el.className = 'feedback show try';
+            }
+            setTimeout(() => el.classList.remove('show'), 1000);
+        }
+        
+        // Animation loop
+        let lastTime = 0, frames = 0;
+        function animate(time) {
+            frames++;
+            if (time - lastTime >= 1000) {
+                document.getElementById('dbgFps').textContent = frames;
+                frames = 0;
+                lastTime = time;
+            }
+            
+            if (isPlaying) {
+                drawTrainer();
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // MediaPipe setup
+        function setupMediaPipe() {
+            const pose = new Pose({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+            });
+            
+            pose.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            
+            pose.onResults((results) => {
+                if (results.poseLandmarks) {
+                    userLandmarks = results.poseLandmarks;
+                    drawUser();
+                }
+            });
+            
+            return pose;
+        }
+        
+        // Init
+        async function init() {
+            await loadPoses();
+            
+            const pose = setupMediaPipe();
+            
+            // Camera
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480 } 
+                });
+                userVideo.srcObject = stream;
+                
+                const camera = new Camera(userVideo, {
+                    onFrame: async () => await pose.send({ image: userVideo }),
+                    width: 640,
+                    height: 480
+                });
+                camera.start();
+            } catch (e) {
+                console.error('Camera error:', e);
+                alert('Не удалось получить доступ к камере');
+            }
+            
+            // Video events
+            trainerVideo.addEventListener('play', () => { isPlaying = true; });
+            trainerVideo.addEventListener('pause', () => { isPlaying = false; });
+            trainerVideo.addEventListener('loadedmetadata', () => {
+                setupCanvas(trainerVideo, trainerCanvas);
+            });
+            
+            window.addEventListener('resize', () => {
+                setupCanvas(trainerVideo, trainerCanvas);
+                setupCanvas(userVideo, userCanvas);
+            });
+            
+            document.getElementById('loading').classList.add('hidden');
+            requestAnimationFrame(animate);
+        }
+        
+        // Controls
+        document.getElementById('playBtn').addEventListener('click', () => {
+            if (trainerVideo.paused) {
+                trainerVideo.play();
+                document.getElementById('playBtn').textContent = 'Пауза';
+            } else {
+                trainerVideo.pause();
+                document.getElementById('playBtn').textContent = 'Начать';
+            }
+        });
+        
+        document.getElementById('skelBtn').addEventListener('click', (e) => {
+            showSkeleton = !showSkeleton;
+            e.target.classList.toggle('active', showSkeleton);
+            if (!showSkeleton) {
+                trainerCtx.clearRect(0, 0, trainerCanvas.width, trainerCanvas.height);
+                userCtx.clearRect(0, 0, userCanvas.width, userCanvas.height);
+            }
+        });
+        
+        document.getElementById('debugBtn').addEventListener('click', () => {
+            document.getElementById('debug').classList.toggle('show');
+        });
+        
+        init();
+    </script>
+</body>
+</html>
