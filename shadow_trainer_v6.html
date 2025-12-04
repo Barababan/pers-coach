@@ -410,30 +410,8 @@
             userVideo.style.opacity = e.target.value;
         };
         
-        // ============ SAUSAGE MAN SILHOUETTE ============
-        // Define body parts as [startIdx, endIdx, relativeThickness]
-        // MediaPipe Pose indices: https://google.github.io/mediapipe/solutions/pose.html
-        const BODY_CONNECTIONS = [
-            // TORSO (draw first so limbs attach on top)
-            [[11, 12], 0.9],  // Shoulders
-            [[23, 24], 0.9],  // Hips
-            [[11, 23], 1.3],  // Left side torso
-            [[12, 24], 1.3],  // Right side torso
-            [[11, 24], 1.3],  // Cross torso (fills gaps)
-            [[12, 23], 1.3],  // Cross torso
-            
-            // ARMS
-            [[11, 13], 0.5],  // L Upper arm
-            [[13, 15], 0.4],  // L Forearm
-            [[12, 14], 0.5],  // R Upper arm
-            [[14, 16], 0.4],  // R Forearm
-            
-            // LEGS
-            [[23, 25], 0.75], // L Thigh
-            [[25, 27], 0.55], // L Shin
-            [[24, 26], 0.75], // R Thigh
-            [[26, 28], 0.55], // R Shin
-        ];
+        // ============ SMPL-STYLE SILHOUETTE ============
+        // Anatomically correct body proportions based on SMPL model
         
         function drawSilhouette(landmarks) {
             const w = silhouetteCanvas.width;
@@ -445,45 +423,137 @@
             
             if (!landmarks || !document.getElementById('toggleSilhouette').checked) return;
             
-            // Silhouette color - WHITE semi-transparent (like mirror reflection)
-            silhouetteCtx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-            silhouetteCtx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            // Helper to get point
+            const pt = (i) => landmarks[i] && landmarks[i].visibility > 0.5 ? 
+                { x: landmarks[i].x * w, y: landmarks[i].y * h, v: landmarks[i].visibility } : null;
+            
+            // Get key landmarks
+            const lShoulder = pt(11), rShoulder = pt(12);
+            const lElbow = pt(13), rElbow = pt(14);
+            const lWrist = pt(15), rWrist = pt(16);
+            const lHip = pt(23), rHip = pt(24);
+            const lKnee = pt(25), rKnee = pt(26);
+            const lAnkle = pt(27), rAnkle = pt(28);
+            const nose = pt(0);
+            const lEar = pt(7), rEar = pt(8);
+            
+            if (!lShoulder || !rShoulder || !lHip || !rHip) return;
+            
+            // Calculate body scale based on shoulder width
+            const shoulderWidth = Math.hypot(rShoulder.x - lShoulder.x, rShoulder.y - lShoulder.y);
+            const baseUnit = shoulderWidth * thickness;
+            
+            // Silhouette style
+            silhouetteCtx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+            silhouetteCtx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
             silhouetteCtx.lineCap = 'round';
             silhouetteCtx.lineJoin = 'round';
             
-            // Draw HEAD (circle based on ear distance) - SMALLER
-            const nose = landmarks[0];
-            const leftEar = landmarks[7];
-            const rightEar = landmarks[8];
+            // ===== DRAW TORSO as filled shape =====
+            const neck = { x: (lShoulder.x + rShoulder.x) / 2, y: (lShoulder.y + rShoulder.y) / 2 - baseUnit * 0.15 };
+            const chest = { x: (lShoulder.x + rShoulder.x) / 2, y: (lShoulder.y + rShoulder.y) / 2 + baseUnit * 0.4 };
+            const waist = { x: (lHip.x + rHip.x) / 2, y: (lHip.y + rHip.y) / 2 - baseUnit * 0.2 };
+            const pelvis = { x: (lHip.x + rHip.x) / 2, y: (lHip.y + rHip.y) / 2 };
             
-            if (nose && leftEar && rightEar && nose.visibility > 0.5) {
-                const earDist = Math.abs(leftEar.x - rightEar.x);
-                const headRadius = earDist * w * 1.3 * thickness;  // Reduced from 2.2 to 1.3
+            // Torso outline (trapezoid shape: wide shoulders, narrower waist)
+            silhouetteCtx.beginPath();
+            silhouetteCtx.moveTo(lShoulder.x - baseUnit * 0.1, lShoulder.y);
+            silhouetteCtx.lineTo(rShoulder.x + baseUnit * 0.1, rShoulder.y);
+            // Right side down
+            silhouetteCtx.quadraticCurveTo(
+                rShoulder.x + baseUnit * 0.15, chest.y,
+                waist.x + baseUnit * 0.35, waist.y
+            );
+            silhouetteCtx.lineTo(rHip.x + baseUnit * 0.05, rHip.y);
+            silhouetteCtx.lineTo(lHip.x - baseUnit * 0.05, lHip.y);
+            // Left side up
+            silhouetteCtx.quadraticCurveTo(
+                lShoulder.x - baseUnit * 0.15, chest.y,
+                lShoulder.x - baseUnit * 0.1, lShoulder.y
+            );
+            silhouetteCtx.closePath();
+            silhouetteCtx.fill();
+            
+            // ===== HEAD - anatomically sized =====
+            if (nose && lEar && rEar) {
+                const headWidth = Math.abs(rEar.x - lEar.x) * 0.9;
+                const headHeight = headWidth * 1.2;
+                const headCenterY = nose.y - headHeight * 0.35;
                 
+                // Oval head
                 silhouetteCtx.beginPath();
-                silhouetteCtx.arc(
-                    nose.x * w,
-                    (nose.y * h) - (headRadius * 0.3),
-                    headRadius,
-                    0, 2 * Math.PI
-                );
+                silhouetteCtx.ellipse(nose.x, headCenterY, headWidth * 0.5, headHeight * 0.5, 0, 0, Math.PI * 2);
+                silhouetteCtx.fill();
+                
+                // Neck connection
+                silhouetteCtx.beginPath();
+                silhouetteCtx.moveTo(nose.x - baseUnit * 0.12, headCenterY + headHeight * 0.4);
+                silhouetteCtx.lineTo(nose.x + baseUnit * 0.12, headCenterY + headHeight * 0.4);
+                silhouetteCtx.lineTo(neck.x + baseUnit * 0.1, neck.y);
+                silhouetteCtx.lineTo(neck.x - baseUnit * 0.1, neck.y);
+                silhouetteCtx.closePath();
                 silhouetteCtx.fill();
             }
             
-            // Draw body parts as thick capsules
-            BODY_CONNECTIONS.forEach(([indices, relThick]) => {
-                const start = landmarks[indices[0]];
-                const end = landmarks[indices[1]];
+            // ===== Helper: Draw tapered limb (SMPL-style) =====
+            function drawLimb(p1, p2, startWidth, endWidth) {
+                if (!p1 || !p2) return;
                 
-                // Only draw if both points are visible
-                if (start && end && start.visibility > 0.5 && end.visibility > 0.5) {
-                    silhouetteCtx.beginPath();
-                    silhouetteCtx.moveTo(start.x * w, start.y * h);
-                    silhouetteCtx.lineTo(end.x * w, end.y * h);
-                    silhouetteCtx.lineWidth = relThick * 100 * thickness;
-                    silhouetteCtx.stroke();
-                }
-            });
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const len = Math.hypot(dx, dy);
+                if (len < 1) return;
+                
+                // Perpendicular direction
+                const px = -dy / len;
+                const py = dx / len;
+                
+                silhouetteCtx.beginPath();
+                silhouetteCtx.moveTo(p1.x + px * startWidth, p1.y + py * startWidth);
+                silhouetteCtx.lineTo(p2.x + px * endWidth, p2.y + py * endWidth);
+                silhouetteCtx.lineTo(p2.x - px * endWidth, p2.y - py * endWidth);
+                silhouetteCtx.lineTo(p1.x - px * startWidth, p1.y - py * startWidth);
+                silhouetteCtx.closePath();
+                silhouetteCtx.fill();
+                
+                // Round joints
+                silhouetteCtx.beginPath();
+                silhouetteCtx.arc(p1.x, p1.y, startWidth, 0, Math.PI * 2);
+                silhouetteCtx.fill();
+                silhouetteCtx.beginPath();
+                silhouetteCtx.arc(p2.x, p2.y, endWidth, 0, Math.PI * 2);
+                silhouetteCtx.fill();
+            }
+            
+            // ===== ARMS =====
+            // Upper arms (shoulder to elbow)
+            drawLimb(lShoulder, lElbow, baseUnit * 0.18, baseUnit * 0.14);
+            drawLimb(rShoulder, rElbow, baseUnit * 0.18, baseUnit * 0.14);
+            
+            // Forearms (elbow to wrist)
+            drawLimb(lElbow, lWrist, baseUnit * 0.14, baseUnit * 0.09);
+            drawLimb(rElbow, rWrist, baseUnit * 0.14, baseUnit * 0.09);
+            
+            // ===== LEGS =====
+            // Thighs (hip to knee) - muscular
+            drawLimb(lHip, lKnee, baseUnit * 0.22, baseUnit * 0.16);
+            drawLimb(rHip, rKnee, baseUnit * 0.22, baseUnit * 0.16);
+            
+            // Shins (knee to ankle)
+            drawLimb(lKnee, lAnkle, baseUnit * 0.16, baseUnit * 0.10);
+            drawLimb(rKnee, rAnkle, baseUnit * 0.16, baseUnit * 0.10);
+            
+            // ===== FEET (simple) =====
+            if (lAnkle) {
+                silhouetteCtx.beginPath();
+                silhouetteCtx.ellipse(lAnkle.x, lAnkle.y + baseUnit * 0.08, baseUnit * 0.12, baseUnit * 0.06, 0, 0, Math.PI * 2);
+                silhouetteCtx.fill();
+            }
+            if (rAnkle) {
+                silhouetteCtx.beginPath();
+                silhouetteCtx.ellipse(rAnkle.x, rAnkle.y + baseUnit * 0.08, baseUnit * 0.12, baseUnit * 0.06, 0, 0, Math.PI * 2);
+                silhouetteCtx.fill();
+            }
         }
         
         // ============ TRAINER SKELETON (colored by similarity) ============
