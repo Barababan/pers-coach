@@ -1,0 +1,45 @@
+__pycache__/
+*.pyc
+.DS_Store
+
+# Video files (too large)
+*.mp4
+*.mov
+*.avi
+*.webm
+
+# Images (generated)
+*.jpg
+*.png
+output/
+
+# Model weights (too large, download separately)
+MODNet/
+checkpoints/
+*.ckpt
+*.pt
+*.pth
+*.t7
+
+# Output files (generated)
+*.json
+*.npz
+
+# External repos (clone separately)
+sam-3d-body/
+DPR/
+IAN/
+Intrinsic/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Environment
+.env
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/

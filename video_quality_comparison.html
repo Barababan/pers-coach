@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Video Segmentation Quality Comparison</title>
+    <style>
+        body {
+            background: #1a1a1a;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 {
+            text-align: center;
+            color: #00ff88;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+        }
+        .frame-section {
+            margin-bottom: 50px;
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .frame-section h2 {
+            color: #00ff88;
+            margin-top: 0;
+            border-bottom: 2px solid #444;
+            padding-bottom: 10px;
+        }
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .image-box {
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 2px solid #444;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .image-box:hover {
+            transform: scale(1.02);
+            border-color: #00ff88;
+        }
+        .image-box h3 {
+            margin: 0;
+            padding: 12px;
+            background: #222;
+            font-size: 16px;
+            text-align: center;
+        }
+        .image-box img {
+            width: 100%;
+            display: block;
+        }
+        .legend {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .legend h3 {
+            margin-top: 0;
+            color: #00ff88;
+        }
+        .legend-item {
+            margin: 8px 0;
+            padding: 8px;
+            background: #333;
+            border-radius: 4px;
+        }
+        .legend-item strong {
+            color: #00ff88;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 Video Segmentation Quality Comparison</h1>
+    <div class="subtitle">Comparing different background removal methods</div>
+    
+    <div class="legend">
+        <h3>📊 Methods Compared</h3>
+        <div class="legend-item"><strong>Original</strong></div>
+        <div class="legend-item"><strong>U2Net Human Seg</strong></div>
+        <div class="legend-item"><strong>MODNet v1</strong></div>
+        <div class="legend-item"><strong>MODNet v2 (Improved)</strong></div>
+    </div>
+
+    <div class="frame-section">
+        <h2>Frame 100</h2>
+        <div class="comparison-grid">
+
+            <div class="image-box">
+                <h3>Original</h3>
+                <img src="compare_original_frame_100.jpg" alt="Original - Frame 100">
+            </div>
+
+            <div class="image-box">
+                <h3>U2Net Human Seg</h3>
+                <img src="compare_u2net_human_seg_frame_100.jpg" alt="U2Net Human Seg - Frame 100">
+            </div>
+
+            <div class="image-box">
+                <h3>MODNet v1</h3>
+                <img src="compare_modnet_v1_frame_100.jpg" alt="MODNet v1 - Frame 100">
+            </div>
+
+            <div class="image-box">
+                <h3>MODNet v2 (Improved)</h3>
+                <img src="compare_modnet_v2_(improved)_frame_100.jpg" alt="MODNet v2 (Improved) - Frame 100">
+            </div>
+        </div>
+    </div>
+
+    <div class="frame-section">
+        <h2>Frame 250</h2>
+        <div class="comparison-grid">
+
+            <div class="image-box">
+                <h3>Original</h3>
+                <img src="compare_original_frame_250.jpg" alt="Original - Frame 250">
+            </div>
+
+            <div class="image-box">
+                <h3>U2Net Human Seg</h3>
+                <img src="compare_u2net_human_seg_frame_250.jpg" alt="U2Net Human Seg - Frame 250">
+            </div>
+
+            <div class="image-box">
+                <h3>MODNet v1</h3>
+                <img src="compare_modnet_v1_frame_250.jpg" alt="MODNet v1 - Frame 250">
+            </div>
+
+            <div class="image-box">
+                <h3>MODNet v2 (Improved)</h3>
+                <img src="compare_modnet_v2_(improved)_frame_250.jpg" alt="MODNet v2 (Improved) - Frame 250">
+            </div>
+        </div>
+    </div>
+
+    <div class="frame-section">
+        <h2>Frame 400</h2>
+        <div class="comparison-grid">
+
+            <div class="image-box">
+                <h3>Original</h3>
+                <img src="compare_original_frame_400.jpg" alt="Original - Frame 400">
+            </div>
+
+            <div class="image-box">
+                <h3>U2Net Human Seg</h3>
+                <img src="compare_u2net_human_seg_frame_400.jpg" alt="U2Net Human Seg - Frame 400">
+            </div>
+
+            <div class="image-box">
+                <h3>MODNet v1</h3>
+                <img src="compare_modnet_v1_frame_400.jpg" alt="MODNet v1 - Frame 400">
+            </div>
+
+            <div class="image-box">
+                <h3>MODNet v2 (Improved)</h3>
+                <img src="compare_modnet_v2_(improved)_frame_400.jpg" alt="MODNet v2 (Improved) - Frame 400">
+            </div>
+        </div>
+    </div>
+
+    <div class="frame-section">
+        <h2>Frame 500</h2>
+        <div class="comparison-grid">
+
+            <div class="image-box">
+                <h3>Original</h3>
+                <img src="compare_original_frame_500.jpg" alt="Original - Frame 500">
+            </div>
+
+            <div class="image-box">
+                <h3>U2Net Human Seg</h3>
+                <img src="compare_u2net_human_seg_frame_500.jpg" alt="U2Net Human Seg - Frame 500">
+            </div>
+
+            <div class="image-box">
+                <h3>MODNet v1</h3>
+                <img src="compare_modnet_v1_frame_500.jpg" alt="MODNet v1 - Frame 500">
+            </div>
+
+            <div class="image-box">
+                <h3>MODNet v2 (Improved)</h3>
+                <img src="compare_modnet_v2_(improved)_frame_500.jpg" alt="MODNet v2 (Improved) - Frame 500">
+            </div>
+        </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 40px; color: #666; padding: 20px;">
+        <p>Click on images to zoom. Hover to highlight.</p>
+        <p>Generated by MODNet Quality Comparison Tool</p>
+    </div>
+</body>
+</html>
