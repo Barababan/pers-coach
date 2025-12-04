@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pers.coach | Smart Mirror</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #000;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .mirror {
+            position: absolute;
+            inset: 0;
+        }
+        
+        /* User webcam - transparent reflection */
+        #userVideo {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            opacity: 0.2;
+            z-index: 1;
+        }
+        
+        /* User silhouette canvas */
+        #userCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+            transform: scaleX(-1);
+        }
+        
+        /* Trainer container */
+        .trainer-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            height: 85vh;
+            z-index: 10;
+        }
+        
+        #trainerVideo {
+            height: 100%;
+            width: auto;
+            border-radius: 8px;
+        }
+        
+        #trainerCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        /* Logo */
+        .logo {
+            position: fixed;
+            top: 20px;
+            left: 24px;
+            font-family: 'Orbitron', monospace;
+            font-size: 18px;
+            font-weight: 900;
+            background: linear-gradient(90deg, #00ffd5, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            z-index: 100;
+        }
+        
+        /* Settings */
+        .settings-btn {
+            position: fixed;
+            top: 16px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.5);
+            color: rgba(255,255,255,0.7);
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 100;
+        }
+        
+        .settings-panel {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 100;
+            display: none;
+        }
+        
+        .settings-panel.show { display: block; }
+        
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            gap: 20px;
+        }
+        
+        .toggle-label { font-size: 12px; color: rgba(255,255,255,0.7); }
+        
+        .toggle {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            cursor: pointer;
+        }
+        
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.2);
+            border-radius: 11px;
+            transition: 0.3s;
+        }
+        
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            left: 3px;
+            top: 3px;
+            background: #fff;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        
+        .toggle input:checked + .toggle-slider {
+            background: linear-gradient(90deg, #00ffd5, #00d4ff);
+        }
+        
+        .toggle input:checked + .toggle-slider::before {
+            transform: translateX(18px);
+        }
+        
+        .slider-row {
+            padding: 8px 0;
+        }
+        
+        .slider-row input[type="range"] {
+            width: 100%;
+            margin-top: 8px;
+        }
+        
+        /* Controls */
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 24px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 100;
+        }
+        
+        .play-btn {
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00ffd5, #00d4ff);
+            color: #000;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        .timeline {
+            width: 180px;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            cursor: pointer;
+        }
+        
+        .timeline-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #00ffd5, #00d4ff);
+            border-radius: 2px;
+            width: 0%;
+        }
+        
+        .stat {
+            text-align: center;
+            min-width: 50px;
+        }
+        
+        .stat-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 18px;
+            font-weight: 700;
+            color: #00ffd5;
+        }
+        
+        .stat-label {
+            font-size: 8px;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+        }
+        
+        .time-display {
+            font-family: 'Orbitron', monospace;
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+        }
+        
+        /* Feedback */
+        .feedback {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-family: 'Orbitron', monospace;
+            font-size: 36px;
+            font-weight: 900;
+            padding: 16px 32px;
+            border-radius: 16px;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        
+        .feedback.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        .feedback.great { color: #00ff88; border-color: #00ff88; }
+        .feedback.good { color: #ffd93d; border-color: #ffd93d; }
+        .feedback.try { color: #ff6b6b; border-color: #ff6b6b; }
+        
+        /* Start overlay */
+        .start-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            z-index: 200;
+        }
+        
+        .start-overlay.hidden { display: none; }
+        
+        .start-btn {
+            padding: 16px 48px;
+            font-family: 'Orbitron', monospace;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 24px;
+            background: linear-gradient(135deg, #00ffd5, #00d4ff);
+            color: #000;
+            cursor: pointer;
+        }
+        
+        .start-text { color: rgba(255,255,255,0.4); font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="logo">pers.coach</div>
+    
+    <button class="settings-btn" onclick="document.getElementById('settingsPanel').classList.toggle('show')">⚙️</button>
+    
+    <div class="settings-panel" id="settingsPanel">
+        <div class="toggle-row">
+            <span class="toggle-label">Силуэт юзера</span>
+            <label class="toggle">
+                <input type="checkbox" id="toggleUserSil" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="toggle-row">
+            <span class="toggle-label">Силуэт тренера</span>
+            <label class="toggle">
+                <input type="checkbox" id="toggleTrainerSil" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="toggle-row">
+            <span class="toggle-label">Webcam</span>
+            <label class="toggle">
+                <input type="checkbox" id="toggleWebcam" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="slider-row">
+            <span class="toggle-label">Толщина силуэта</span>
+            <input type="range" id="bodyThickness" min="0.5" max="2.0" step="0.1" value="1.0">
+        </div>
+        <div class="slider-row">
+            <span class="toggle-label">Прозрачность webcam</span>
+            <input type="range" id="webcamOpacity" min="0" max="0.5" step="0.05" value="0.2">
+        </div>
+    </div>
+    
+    <div class="mirror">
+        <video id="userVideo" playsinline autoplay></video>
+        <canvas id="userCanvas"></canvas>
+        
+        <div class="trainer-container">
+            <video id="trainerVideo" playsinline muted loop>
+                <source src="output/trainer_transparent.webm" type="video/webm">
+            </video>
+            <canvas id="trainerCanvas"></canvas>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button class="play-btn" id="playBtn">▶</button>
+        <div class="timeline" id="timeline">
+            <div class="timeline-progress" id="timelineProgress"></div>
+        </div>
+        <div class="time-display" id="timeDisplay">0:00</div>
+        <div class="stat">
+            <div class="stat-value" id="scoreValue">0%</div>
+            <div class="stat-label">Точность</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="repsValue">0</div>
+            <div class="stat-label">Повторы</div>
+        </div>
+    </div>
+    
+    <div class="feedback" id="feedback"></div>
+    
+    <div class="start-overlay" id="startOverlay">
+        <div class="logo" style="font-size:42px; position:static;">pers.coach</div>
+        <p class="start-text">Smart Fitness Mirror</p>
+        <button class="start-btn" id="startBtn">Начать</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
+    <script>
+        // ============ ELEMENTS ============
+        const trainerVideo = document.getElementById('trainerVideo');
+        const trainerCanvas = document.getElementById('trainerCanvas');
+        const trainerCtx = trainerCanvas.getContext('2d');
+        const userVideo = document.getElementById('userVideo');
+        const userCanvas = document.getElementById('userCanvas');
+        const userCtx = userCanvas.getContext('2d');
+        
+        // ============ STATE ============
+        let trainerPoses = null;
+        let userLandmarks = null;
+        let limbScores = {};
+        let similarity = 0;
+        let repCount = 0;
+        let wasDown = false;
+        
+        // Load trainer poses
+        fetch('output/poses/trainer_poses.json')
+            .then(r => r.json())
+            .then(data => { 
+                trainerPoses = data; 
+                console.log('Loaded poses:', data.poses.length, 'size:', data.width, 'x', data.height);
+            });
+        
+        // ============ MHR70 KEYPOINT MAPPING (for trainer) ============
+        // Body: 0-14, Feet: 15-20, R_hand: 21-41 (wrist=41), L_hand: 42-62 (wrist=62)
+        const MHR = {
+            nose: 0,
+            lShoulder: 5, rShoulder: 6,
+            lElbow: 7, rElbow: 8,
+            lHip: 9, rHip: 10,
+            lKnee: 11, rKnee: 12,
+            lAnkle: 13, rAnkle: 14,
+            lWrist: 62, rWrist: 41
+        };
+        
+        // MediaPipe Pose indices (for user)
+        const MP = {
+            nose: 0,
+            lEar: 7, rEar: 8,
+            lShoulder: 11, rShoulder: 12,
+            lElbow: 13, rElbow: 14,
+            lWrist: 15, rWrist: 16,
+            lHip: 23, rHip: 24,
+            lKnee: 25, rKnee: 26,
+            lAnkle: 27, rAnkle: 28
+        };
+        
+        // ============ SMPL-STYLE CAPSULE DRAWING ============
+        function getColor(score) {
+            if (score >= 0.7) return 'rgba(0, 255, 136, 0.7)';   // Green
+            if (score >= 0.4) return 'rgba(255, 217, 61, 0.7)';  // Yellow
+            return 'rgba(255, 107, 107, 0.7)';                   // Red
+        }
+        
+        function drawCapsule(ctx, x1, y1, x2, y2, width) {
+            // Draw thick line with round caps = capsule shape
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.lineWidth = width;
+            ctx.lineCap = 'round';  // Creates perfect round joints!
+            ctx.stroke();
+        }
+        
+        function drawCircle(ctx, x, y, radius) {
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function drawEllipse(ctx, x, y, rx, ry) {
+            ctx.beginPath();
+            ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // ============ DRAW TRAINER SILHOUETTE (from MHR70 2D keypoints) ============
+        function drawTrainerSilhouette(pose) {
+            const rect = trainerVideo.getBoundingClientRect();
+            trainerCanvas.width = rect.width;
+            trainerCanvas.height = rect.height;
+            trainerCtx.clearRect(0, 0, rect.width, rect.height);
+            
+            if (!document.getElementById('toggleTrainerSil').checked) return;
+            if (!pose || !pose.keypoints_2d) return;
+            
+            const kp = pose.keypoints_2d;
+            const sx = rect.width / trainerPoses.width;
+            const sy = rect.height / trainerPoses.height;
+            const thickness = parseFloat(document.getElementById('bodyThickness').value);
+            
+            // Helper to get scaled point
+            const pt = (idx) => {
+                if (idx >= kp.length || !kp[idx]) return null;
+                return { x: kp[idx][0] * sx, y: kp[idx][1] * sy };
+            };
+            
+            // Get key points
+            const lShoulder = pt(MHR.lShoulder), rShoulder = pt(MHR.rShoulder);
+            const lElbow = pt(MHR.lElbow), rElbow = pt(MHR.rElbow);
+            const lWrist = pt(MHR.lWrist), rWrist = pt(MHR.rWrist);
+            const lHip = pt(MHR.lHip), rHip = pt(MHR.rHip);
+            const lKnee = pt(MHR.lKnee), rKnee = pt(MHR.rKnee);
+            const lAnkle = pt(MHR.lAnkle), rAnkle = pt(MHR.rAnkle);
+            const nose = pt(MHR.nose);
+            
+            if (!lShoulder || !rShoulder || !lHip || !rHip) return;
+            
+            // Calculate base unit from shoulder width
+            const shoulderW = Math.hypot(rShoulder.x - lShoulder.x, rShoulder.y - lShoulder.y);
+            const unit = shoulderW * thickness * 0.15;
+            
+            // ===== TORSO (trapezoid with quad curves) =====
+            trainerCtx.fillStyle = getColor(limbScores.torso || 0);
+            trainerCtx.strokeStyle = getColor(limbScores.torso || 0);
+            
+            const neck = { x: (lShoulder.x + rShoulder.x) / 2, y: Math.min(lShoulder.y, rShoulder.y) - unit };
+            const pelvis = { x: (lHip.x + rHip.x) / 2, y: (lHip.y + rHip.y) / 2 };
+            
+            trainerCtx.beginPath();
+            trainerCtx.moveTo(lShoulder.x - unit * 0.5, lShoulder.y);
+            trainerCtx.lineTo(rShoulder.x + unit * 0.5, rShoulder.y);
+            trainerCtx.lineTo(rHip.x + unit * 0.3, rHip.y);
+            trainerCtx.lineTo(lHip.x - unit * 0.3, lHip.y);
+            trainerCtx.closePath();
+            trainerCtx.fill();
+            
+            // ===== HEAD =====
+            if (nose) {
+                const headRadius = unit * 2;
+                trainerCtx.fillStyle = getColor(limbScores.torso || 0);
+                drawEllipse(trainerCtx, nose.x, nose.y - headRadius * 0.3, headRadius * 0.8, headRadius);
+                
+                // Neck
+                drawCapsule(trainerCtx, neck.x, neck.y, nose.x, nose.y + headRadius * 0.5, unit * 1.2);
+            }
+            
+            // ===== ARMS =====
+            // Left arm
+            trainerCtx.strokeStyle = getColor(limbScores.leftArm || 0);
+            trainerCtx.fillStyle = getColor(limbScores.leftArm || 0);
+            if (lElbow) {
+                drawCapsule(trainerCtx, lShoulder.x, lShoulder.y, lElbow.x, lElbow.y, unit * 2.5);
+                if (lWrist) {
+                    drawCapsule(trainerCtx, lElbow.x, lElbow.y, lWrist.x, lWrist.y, unit * 2);
+                }
+            }
+            
+            // Right arm
+            trainerCtx.strokeStyle = getColor(limbScores.rightArm || 0);
+            trainerCtx.fillStyle = getColor(limbScores.rightArm || 0);
+            if (rElbow) {
+                drawCapsule(trainerCtx, rShoulder.x, rShoulder.y, rElbow.x, rElbow.y, unit * 2.5);
+                if (rWrist) {
+                    drawCapsule(trainerCtx, rElbow.x, rElbow.y, rWrist.x, rWrist.y, unit * 2);
+                }
+            }
+            
+            // ===== LEGS =====
+            // Left leg
+            trainerCtx.strokeStyle = getColor(limbScores.leftLeg || 0);
+            trainerCtx.fillStyle = getColor(limbScores.leftLeg || 0);
+            if (lKnee) {
+                drawCapsule(trainerCtx, lHip.x, lHip.y, lKnee.x, lKnee.y, unit * 3);
+                if (lAnkle) {
+                    drawCapsule(trainerCtx, lKnee.x, lKnee.y, lAnkle.x, lAnkle.y, unit * 2.5);
+                    // Foot
+                    drawEllipse(trainerCtx, lAnkle.x, lAnkle.y + unit, unit * 1.5, unit * 0.8);
+                }
+            }
+            
+            // Right leg
+            trainerCtx.strokeStyle = getColor(limbScores.rightLeg || 0);
+            trainerCtx.fillStyle = getColor(limbScores.rightLeg || 0);
+            if (rKnee) {
+                drawCapsule(trainerCtx, rHip.x, rHip.y, rKnee.x, rKnee.y, unit * 3);
+                if (rAnkle) {
+                    drawCapsule(trainerCtx, rKnee.x, rKnee.y, rAnkle.x, rAnkle.y, unit * 2.5);
+                    // Foot
+                    drawEllipse(trainerCtx, rAnkle.x, rAnkle.y + unit, unit * 1.5, unit * 0.8);
+                }
+            }
+        }
+        
+        // ============ DRAW USER SILHOUETTE (from MediaPipe landmarks) ============
+        function drawUserSilhouette() {
+            userCanvas.width = window.innerWidth;
+            userCanvas.height = window.innerHeight;
+            userCtx.clearRect(0, 0, userCanvas.width, userCanvas.height);
+            
+            if (!document.getElementById('toggleUserSil').checked) return;
+            if (!userLandmarks) return;
+            
+            const w = userCanvas.width;
+            const h = userCanvas.height;
+            const thickness = parseFloat(document.getElementById('bodyThickness').value);
+            
+            // Helper to get point
+            const pt = (idx) => {
+                const lm = userLandmarks[idx];
+                if (!lm || lm.visibility < 0.5) return null;
+                return { x: lm.x * w, y: lm.y * h };
+            };
+            
+            // Get key points
+            const lShoulder = pt(MP.lShoulder), rShoulder = pt(MP.rShoulder);
+            const lElbow = pt(MP.lElbow), rElbow = pt(MP.rElbow);
+            const lWrist = pt(MP.lWrist), rWrist = pt(MP.rWrist);
+            const lHip = pt(MP.lHip), rHip = pt(MP.rHip);
+            const lKnee = pt(MP.lKnee), rKnee = pt(MP.rKnee);
+            const lAnkle = pt(MP.lAnkle), rAnkle = pt(MP.rAnkle);
+            const nose = pt(MP.nose);
+            const lEar = pt(MP.lEar), rEar = pt(MP.rEar);
+            
+            if (!lShoulder || !rShoulder || !lHip || !rHip) return;
+            
+            // Calculate base unit from shoulder width
+            const shoulderW = Math.hypot(rShoulder.x - lShoulder.x, rShoulder.y - lShoulder.y);
+            const unit = shoulderW * thickness * 0.15;
+            
+            // User silhouette color - white/gray
+            const userColor = 'rgba(255, 255, 255, 0.5)';
+            userCtx.fillStyle = userColor;
+            userCtx.strokeStyle = userColor;
+            
+            // ===== TORSO =====
+            const neck = { x: (lShoulder.x + rShoulder.x) / 2, y: Math.min(lShoulder.y, rShoulder.y) - unit };
+            
+            userCtx.beginPath();
+            userCtx.moveTo(lShoulder.x - unit * 0.5, lShoulder.y);
+            userCtx.lineTo(rShoulder.x + unit * 0.5, rShoulder.y);
+            userCtx.lineTo(rHip.x + unit * 0.3, rHip.y);
+            userCtx.lineTo(lHip.x - unit * 0.3, lHip.y);
+            userCtx.closePath();
+            userCtx.fill();
+            
+            // ===== HEAD =====
+            if (nose) {
+                let headRadius = unit * 2;
+                // Use ear distance if available for more accurate head size
+                if (lEar && rEar) {
+                    headRadius = Math.abs(rEar.x - lEar.x) * 0.7;
+                }
+                drawEllipse(userCtx, nose.x, nose.y - headRadius * 0.3, headRadius * 0.8, headRadius);
+                
+                // Neck
+                drawCapsule(userCtx, neck.x, neck.y, nose.x, nose.y + headRadius * 0.5, unit * 1.2);
+            }
+            
+            // ===== ARMS =====
+            if (lElbow) {
+                drawCapsule(userCtx, lShoulder.x, lShoulder.y, lElbow.x, lElbow.y, unit * 2.5);
+                if (lWrist) {
+                    drawCapsule(userCtx, lElbow.x, lElbow.y, lWrist.x, lWrist.y, unit * 2);
+                }
+            }
+            
+            if (rElbow) {
+                drawCapsule(userCtx, rShoulder.x, rShoulder.y, rElbow.x, rElbow.y, unit * 2.5);
+                if (rWrist) {
+                    drawCapsule(userCtx, rElbow.x, rElbow.y, rWrist.x, rWrist.y, unit * 2);
+                }
+            }
+            
+            // ===== LEGS =====
+            if (lKnee) {
+                drawCapsule(userCtx, lHip.x, lHip.y, lKnee.x, lKnee.y, unit * 3);
+                if (lAnkle) {
+                    drawCapsule(userCtx, lKnee.x, lKnee.y, lAnkle.x, lAnkle.y, unit * 2.5);
+                    drawEllipse(userCtx, lAnkle.x, lAnkle.y + unit, unit * 1.5, unit * 0.8);
+                }
+            }
+            
+            if (rKnee) {
+                drawCapsule(userCtx, rHip.x, rHip.y, rKnee.x, rKnee.y, unit * 3);
+                if (rAnkle) {
+                    drawCapsule(userCtx, rKnee.x, rKnee.y, rAnkle.x, rAnkle.y, unit * 2.5);
+                    drawEllipse(userCtx, rAnkle.x, rAnkle.y + unit, unit * 1.5, unit * 0.8);
+                }
+            }
+        }
+        
+        // ============ SIMILARITY CALCULATION ============
+        function calcSimilarity(trainerPose) {
+            if (!trainerPose || !userLandmarks) return 0;
+            
+            const kp = trainerPose.keypoints_2d;
+            if (!kp) return 0;
+            
+            const sx = 1 / trainerPoses.width;
+            const sy = 1 / trainerPoses.height;
+            
+            // Limb definitions for comparison
+            const limbs = {
+                leftArm: [[MHR.lShoulder, MHR.lElbow, MP.lShoulder, MP.lElbow], 
+                          [MHR.lElbow, MHR.lWrist, MP.lElbow, MP.lWrist]],
+                rightArm: [[MHR.rShoulder, MHR.rElbow, MP.rShoulder, MP.rElbow],
+                           [MHR.rElbow, MHR.rWrist, MP.rElbow, MP.rWrist]],
+                leftLeg: [[MHR.lHip, MHR.lKnee, MP.lHip, MP.lKnee],
+                          [MHR.lKnee, MHR.lAnkle, MP.lKnee, MP.lAnkle]],
+                rightLeg: [[MHR.rHip, MHR.rKnee, MP.rHip, MP.rKnee],
+                           [MHR.rKnee, MHR.rAnkle, MP.rKnee, MP.rAnkle]]
+            };
+            
+            let totalSim = 0, totalCount = 0;
+            limbScores = {};
+            
+            for (const [group, bones] of Object.entries(limbs)) {
+                let groupSim = 0, groupCount = 0;
+                
+                for (const [ti, tj, ui, uj] of bones) {
+                    // Trainer points (normalized)
+                    if (ti >= kp.length || tj >= kp.length || !kp[ti] || !kp[tj]) continue;
+                    const t1 = { x: kp[ti][0] * sx, y: kp[ti][1] * sy };
+                    const t2 = { x: kp[tj][0] * sx, y: kp[tj][1] * sy };
+                    
+                    // User points
+                    const u1 = userLandmarks[ui], u2 = userLandmarks[uj];
+                    if (!u1 || !u2 || u1.visibility < 0.5 || u2.visibility < 0.5) continue;
+                    
+                    // Compare angles
+                    const tAngle = Math.atan2(t2.y - t1.y, t2.x - t1.x);
+                    const uAngle = Math.atan2(u2.y - u1.y, u2.x - u1.x);
+                    
+                    let diff = Math.abs(tAngle - uAngle);
+                    if (diff > Math.PI) diff = 2 * Math.PI - diff;
+                    
+                    const boneSim = Math.max(0, 1 - diff / Math.PI);
+                    groupSim += boneSim;
+                    groupCount++;
+                }
+                
+                limbScores[group] = groupCount > 0 ? groupSim / groupCount : 0;
+                totalSim += groupSim;
+                totalCount += groupCount;
+            }
+            
+            // Torso score = average of all limbs
+            limbScores.torso = (limbScores.leftArm + limbScores.rightArm + 
+                               limbScores.leftLeg + limbScores.rightLeg) / 4 || 0;
+            
+            return totalCount > 0 ? totalSim / totalCount : 0;
+        }
+        
+        // ============ REP COUNTING ============
+        function checkRep(trainerPose) {
+            if (!trainerPose || !trainerPose.keypoints_2d) return;
+            
+            const kp = trainerPose.keypoints_2d;
+            const lHip = kp[MHR.lHip], lKnee = kp[MHR.lKnee];
+            const rHip = kp[MHR.rHip], rKnee = kp[MHR.rKnee];
+            
+            if (!lHip || !lKnee || !rHip || !rKnee) return;
+            
+            const avgHipY = (lHip[1] + rHip[1]) / 2;
+            const avgKneeY = (lKnee[1] + rKnee[1]) / 2;
+            
+            const isDown = avgHipY > avgKneeY - 20;
+            
+            if (isDown && !wasDown) {
+                wasDown = true;
+            } else if (!isDown && wasDown) {
+                if (similarity > 0.5) {
+                    repCount++;
+                    document.getElementById('repsValue').textContent = repCount;
+                    showFeedback(similarity);
+                }
+                wasDown = false;
+            }
+        }
+        
+        function showFeedback(score) {
+            const fb = document.getElementById('feedback');
+            fb.className = 'feedback';
+            
+            if (score > 0.7) {
+                fb.textContent = 'ОТЛИЧНО!';
+                fb.classList.add('great', 'show');
+            } else if (score > 0.5) {
+                fb.textContent = 'ХОРОШО!';
+                fb.classList.add('good', 'show');
+            } else {
+                fb.textContent = 'СТАРАЙСЯ!';
+                fb.classList.add('try', 'show');
+            }
+            
+            setTimeout(() => fb.classList.remove('show'), 1000);
+        }
+        
+        // ============ GET CURRENT POSE ============
+        function getPose() {
+            if (!trainerPoses || !trainerPoses.poses) return null;
+            const t = trainerVideo.currentTime;
+            const fps = trainerPoses.fps || 15;
+            const skip = trainerPoses.skip_frames || 2;
+            let idx = Math.floor(t * fps / skip);
+            idx = Math.max(0, Math.min(idx, trainerPoses.poses.length - 1));
+            return trainerPoses.poses[idx];
+        }
+        
+        // ============ MEDIAPIPE SETUP ============
+        const mpPose = new Pose({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+        });
+        
+        mpPose.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        
+        mpPose.onResults(results => {
+            userLandmarks = results.poseLandmarks || null;
+        });
+        
+        // ============ START ============
+        document.getElementById('startBtn').onclick = async () => {
+            document.getElementById('startOverlay').classList.add('hidden');
+            
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: 1280, height: 720 } 
+            });
+            userVideo.srcObject = stream;
+            
+            userVideo.style.opacity = document.getElementById('toggleWebcam').checked ? 
+                document.getElementById('webcamOpacity').value : 0;
+            
+            const cam = new Camera(userVideo, {
+                onFrame: async () => { await mpPose.send({ image: userVideo }); },
+                width: 1280, height: 720
+            });
+            cam.start();
+            
+            trainerVideo.currentTime = 1.0;
+            trainerVideo.play();
+            document.getElementById('playBtn').textContent = '⏸';
+            
+            requestAnimationFrame(loop);
+        };
+        
+        // ============ CONTROLS ============
+        document.getElementById('playBtn').onclick = () => {
+            if (trainerVideo.paused) {
+                trainerVideo.play();
+                document.getElementById('playBtn').textContent = '⏸';
+            } else {
+                trainerVideo.pause();
+                document.getElementById('playBtn').textContent = '▶';
+            }
+        };
+        
+        document.getElementById('timeline').onclick = e => {
+            const r = e.target.getBoundingClientRect();
+            trainerVideo.currentTime = ((e.clientX - r.left) / r.width) * trainerVideo.duration;
+        };
+        
+        document.getElementById('toggleWebcam').onchange = e => {
+            userVideo.style.opacity = e.target.checked ? 
+                document.getElementById('webcamOpacity').value : 0;
+        };
+        
+        document.getElementById('webcamOpacity').oninput = e => {
+            if (document.getElementById('toggleWebcam').checked) {
+                userVideo.style.opacity = e.target.value;
+            }
+        };
+        
+        // ============ MAIN LOOP ============
+        function loop() {
+            const pose = getPose();
+            
+            // Calculate similarity
+            if (pose && userLandmarks) {
+                similarity = calcSimilarity(pose);
+                document.getElementById('scoreValue').textContent = Math.round(similarity * 100) + '%';
+                checkRep(pose);
+            }
+            
+            // Draw silhouettes
+            drawTrainerSilhouette(pose);
+            drawUserSilhouette();
+            
+            // Update timeline
+            if (trainerVideo.duration) {
+                const pct = (trainerVideo.currentTime / trainerVideo.duration) * 100;
+                document.getElementById('timelineProgress').style.width = pct + '%';
+                const m = Math.floor(trainerVideo.currentTime / 60);
+                const s = Math.floor(trainerVideo.currentTime % 60);
+                document.getElementById('timeDisplay').textContent = `${m}:${s.toString().padStart(2, '0')}`;
+            }
+            
+            requestAnimationFrame(loop);
+        }
+    </script>
+</body>
+</html>
