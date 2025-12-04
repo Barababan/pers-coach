@@ -33,13 +33,14 @@
             z-index: 1;
         }
         
-        /* Silhouette canvas - full screen */
+        /* Silhouette canvas - full screen, mirrored like webcam */
         #silhouetteCanvas {
             position: absolute;
             width: 100%;
             height: 100%;
             z-index: 2;
             pointer-events: none;
+            transform: scaleX(-1);
         }
         
         /* Trainer video - centered, with skeleton */
@@ -444,20 +445,20 @@
             
             if (!landmarks || !document.getElementById('toggleSilhouette').checked) return;
             
-            // Silhouette color - dark semi-transparent
-            silhouetteCtx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
-            silhouetteCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            // Silhouette color - WHITE semi-transparent (like mirror reflection)
+            silhouetteCtx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            silhouetteCtx.fillStyle = 'rgba(255, 255, 255, 0.6)';
             silhouetteCtx.lineCap = 'round';
             silhouetteCtx.lineJoin = 'round';
             
-            // Draw HEAD (circle based on ear distance)
+            // Draw HEAD (circle based on ear distance) - SMALLER
             const nose = landmarks[0];
             const leftEar = landmarks[7];
             const rightEar = landmarks[8];
             
             if (nose && leftEar && rightEar && nose.visibility > 0.5) {
                 const earDist = Math.abs(leftEar.x - rightEar.x);
-                const headRadius = earDist * w * 2.2 * thickness;
+                const headRadius = earDist * w * 1.3 * thickness;  // Reduced from 2.2 to 1.3
                 
                 silhouetteCtx.beginPath();
                 silhouetteCtx.arc(
@@ -690,14 +691,20 @@
             silhouetteCanvas.width = window.innerWidth;
             silhouetteCanvas.height = window.innerHeight;
             
-            // Trainer canvas = match video size
-            const rect = trainerVideo.getBoundingClientRect();
-            trainerCanvas.width = trainerVideo.videoWidth || rect.width;
-            trainerCanvas.height = trainerVideo.videoHeight || rect.height;
+            // Trainer canvas = match video actual pixel size
+            if (trainerVideo.videoWidth > 0) {
+                trainerCanvas.width = trainerVideo.videoWidth;
+                trainerCanvas.height = trainerVideo.videoHeight;
+            }
+            console.log('Trainer canvas:', trainerCanvas.width, 'x', trainerCanvas.height);
         }
         
         window.addEventListener('resize', resizeCanvases);
         trainerVideo.addEventListener('loadedmetadata', resizeCanvases);
+        trainerVideo.addEventListener('canplay', resizeCanvases);
+        
+        // Also resize after a short delay to ensure video dimensions are available
+        setTimeout(resizeCanvases, 500);
         
         // ============ MEDIAPIPE SETUP ============
         const pose = new Pose({
