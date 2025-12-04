@@ -777,19 +777,20 @@
         setTimeout(resizeCanvases, 500);
         
         // ============ MEDIAPIPE SETUP ============
-        const pose = new Pose({
+        const mpPose = new Pose({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
         });
         
-        pose.setOptions({
+        mpPose.setOptions({
             modelComplexity: 1,
             smoothLandmarks: true,
             minDetectionConfidence: 0.5,
             minTrackingConfidence: 0.5
         });
         
-        pose.onResults(results => {
+        mpPose.onResults(results => {
             userLandmarks = results.poseLandmarks || null;
+            if (userLandmarks) console.log('Got user landmarks:', userLandmarks.length);
         });
         
         // ============ START ============
@@ -810,7 +811,7 @@
             
             // Start MediaPipe camera
             const cam = new Camera(userVideo, {
-                onFrame: async () => { await pose.send({ image: userVideo }); },
+                onFrame: async () => { await mpPose.send({ image: userVideo }); },
                 width: 1280, height: 720
             });
             cam.start();
@@ -846,22 +847,22 @@
         
         // ============ MAIN LOOP ============
         function loop() {
-            const pose = getPose();
+            const trainerPose = getPose();
             
             // Clear trainer canvas
             trainerCtx.clearRect(0, 0, trainerCanvas.width, trainerCanvas.height);
             
             // Draw trainer skeleton with similarity colors
-            if (pose) {
+            if (trainerPose) {
                 // Calculate similarity
-                similarity = calculateSimilarity(pose, userLandmarks);
+                similarity = calculateSimilarity(trainerPose, userLandmarks);
                 document.getElementById('scoreValue').textContent = Math.round(similarity * 100) + '%';
                 
                 // Draw colored skeleton on trainer
-                drawTrainerSkeleton(pose);
+                drawTrainerSkeleton(trainerPose);
                 
                 // Check for rep completion
-                checkRep(pose);
+                checkRep(trainerPose);
             }
             
             // Draw user silhouette (sausage man)
